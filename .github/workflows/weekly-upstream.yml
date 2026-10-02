@@ -70,6 +70,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
+    defaults:
+      run:
+        shell: bash
     env:
       UP: ${{ needs.check.outputs.upstream_sha }}
       LAST: ${{ needs.check.outputs.last_sha }}
