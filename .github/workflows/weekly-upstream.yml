@@ -98,11 +98,15 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Version im Image: Original-Commit, plus Commit der Übersetzung, z. B.
+          # v0.1.0-f0aea3d-de.89fcc68 (beide auf GitHub nachschlagbar)
           if grep -q '^de:{' html/app.js; then
             echo "Das Original enthält Deutsch bereits."
+            echo "BUILD_VERSION=${UP:0:7}" >> "$GITHUB_ENV"
           else
             git fetch "https://github.com/$GITHUB_REPOSITORY.git" i18n-de
             git cherry-pick "$(git merge-base HEAD FETCH_HEAD)..FETCH_HEAD"
+            echo "BUILD_VERSION=${UP:0:7}-de.$(git rev-parse --short=7 FETCH_HEAD)" >> "$GITHUB_ENV"
           fi
           python _fork/.github/scripts/check_i18n.py html/app.js de > missing_de.txt
           echo "Fehlende deutsche Texte: $(wc -l < missing_de.txt)"
@@ -112,7 +116,7 @@ jobs:
           mkdir -p dist
           for m in $MACHINES; do
             make clean >/dev/null
-            make CI=1 MACHINE="$m"
+            make CI=1 MACHINE="$m" GIT_VERSION="$BUILD_VERSION"
             cp output/"$m"/rtlplayground-*-"$m".bin dist/
           done
           cd dist
@@ -129,6 +133,8 @@ jobs:
           fi
           {
             echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP) plus deutscher Übersetzung."
+            echo
+            echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Original-Commit, danach \`de.\` und der Commit der Übersetzung im Branch \`i18n-de\`)."
             echo
             echo "## $title"
             echo
