@@ -1,0 +1,67 @@
+name: Firmware-Images bauen
+
+# Baut RTLPlayground-Images für die eigenen Geräte und stellt sie als
+# herunterladbares Artefakt bereit. Start von Hand über „Run workflow“;
+# gebaut wird der angegebene Branch, standardmässig die Übersetzung.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, Tag oder Commit, der gebaut wird
+        default: i18n-de
+        required: true
+      machines:
+        description: Build-Ziele (MACHINE), durch Leerzeichen getrennt
+        default: SWTGW218AS
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+
+    steps:
+      - name: Abhängigkeiten installieren
+        run: |
+          apt-get update
+          apt-get install -y make gcc sdcc xxd python-is-python3 libjson-c-dev zlib1g-dev git
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Git im Container freigeben
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Images bauen
+        env:
+          MACHINES: ${{ inputs.machines }}
+        run: |
+          mkdir -p dist
+          for m in $MACHINES; do
+            make clean >/dev/null
+            make CI=1 MACHINE="$m"
+            cp output/"$m"/rtlplayground-*-"$m".bin dist/
+          done
+
+      - name: Images prüfen
+        run: |
+          cd dist
+          for f in *.bin; do
+            size=$(stat -c %s "$f")
+            echo "$f: $size Bytes"
+            test "$size" -eq 524288
+          done
+          sha256sum *.bin | tee SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rtlplayground-images
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90
