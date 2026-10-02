@@ -1,0 +1,189 @@
+name: Wöchentlicher Abgleich mit dem Original
+
+# Jede Woche in der Nacht auf Freitag:
+#  1. main dieses Forks mit logicog/RTLPlayground abgleichen („Sync fork“),
+#  2. falls das Original neue Commits hat: Original + deutsche Übersetzung
+#     (Branch i18n-de) bauen und als Release mit Änderungsliste veröffentlichen.
+# GitHub benachrichtigt über neue Releases und schlägt bei Fehlern per Mail an.
+
+on:
+  schedule:
+    - cron: "30 0 * * 5" # Freitag 00:30 UTC = 02:30 Sommerzeit / 01:30 Winterzeit
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Release auch ohne neue Änderungen im Original erstellen
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency: weekly-upstream
+
+env:
+  UPSTREAM: logicog/RTLPlayground
+  MACHINES: SWTGW218AS
+
+jobs:
+  sync-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: main mit dem Original abgleichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/$GITHUB_REPOSITORY/merge-upstream" -f branch=main \
+            --jq '"\(.merge_type): \(.message)"'
+
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      upstream_sha: ${{ steps.s.outputs.upstream_sha }}
+      last_sha: ${{ steps.s.outputs.last_sha }}
+      changed: ${{ steps.s.outputs.changed }}
+    steps:
+      - id: s
+        name: Neue Commits im Original?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          up=$(git ls-remote "https://github.com/$UPSTREAM.git" refs/heads/main | cut -f1)
+          tag=$(gh release list -R "$GITHUB_REPOSITORY" --limit 1 --exclude-drafts \
+                  --json tagName --jq '.[0].tagName // ""')
+          last=${tag##*-} # Tag-Muster fw-JJJJMMTT-HHMM-<sha7>
+          changed=false
+          if [ -z "$tag" ] || [ "${up:0:7}" != "$last" ] || [ "$FORCE" = "true" ]; then
+            changed=true
+          fi
+          echo "Original: ${up:0:7}, letztes Release: ${tag:-keins}, bauen: $changed"
+          {
+            echo "upstream_sha=$up"
+            echo "last_sha=$last"
+            echo "changed=$changed"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check
+    if: needs.check.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    env:
+      UP: ${{ needs.check.outputs.upstream_sha }}
+      LAST: ${{ needs.check.outputs.last_sha }}
+    steps:
+      - name: Abhängigkeiten installieren
+        run: |
+          apt-get update
+          apt-get install -y make gcc sdcc xxd python-is-python3 libjson-c-dev zlib1g-dev git
+
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ env.UPSTREAM }}
+          ref: ${{ env.UP }}
+          fetch-depth: 0
+
+      - uses: actions/checkout@v6
+        with:
+          path: _fork
+          sparse-checkout: .github/scripts
+
+      - name: Deutsche Übersetzung übernehmen
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if grep -q '^de:{' html/app.js; then
+            echo "Das Original enthält Deutsch bereits."
+          else
+            git fetch "https://github.com/$GITHUB_REPOSITORY.git" i18n-de
+            git cherry-pick "$(git merge-base HEAD FETCH_HEAD)..FETCH_HEAD"
+          fi
+          python _fork/.github/scripts/check_i18n.py html/app.js de > missing_de.txt
+          echo "Fehlende deutsche Texte: $(wc -l < missing_de.txt)"
+
+      - name: Images bauen
+        run: |
+          mkdir -p dist
+          for m in $MACHINES; do
+            make clean >/dev/null
+            make CI=1 MACHINE="$m"
+            cp output/"$m"/rtlplayground-*-"$m".bin dist/
+          done
+          cd dist
+          for f in *.bin; do test "$(stat -c %s "$f")" -eq 524288; done
+          sha256sum *.bin > SHA256SUMS.txt
+
+      - name: Release-Notizen schreiben
+        run: |
+          base="https://github.com/$UPSTREAM/commit"
+          if [ -n "$LAST" ] && git cat-file -e "$LAST^{commit}" 2>/dev/null; then
+            range="$LAST..$UP"; title="Neue Änderungen im Original seit \`$LAST\`"
+          else
+            range="-20 $UP"; title="Letzte Änderungen im Original"
+          fi
+          {
+            echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP) plus deutscher Übersetzung."
+            echo
+            echo "## $title"
+            echo
+            log=$(git log --no-merges --format="- %s ([\`%h\`]($base/%H))" $range)
+            echo "${log:-(keine)}"
+            if [ "${range%%..*}" = "$LAST" ]; then
+              cl=$(git diff "$LAST" "$UP" -- CHANGELOG.md | grep '^+[^+]' | sed 's/^+//')
+              if [ -n "$cl" ]; then
+                echo
+                echo "## Neu im CHANGELOG"
+                echo
+                echo "$cl"
+              fi
+            fi
+            echo
+            echo "## Übersetzung"
+            echo
+            if [ -s missing_de.txt ]; then
+              echo "⚠️ Noch nicht übersetzt (erscheint auf Englisch): $(paste -sd, missing_de.txt | sed 's/,/, /g')"
+            else
+              echo "✅ Alle Texte sind deutsch."
+            fi
+            echo
+            echo "## Images"
+            echo
+            echo "| Datei | SHA-256 |"
+            echo "|---|---|"
+            while read -r sum file; do echo "| \`${file#\*}\` | \`$sum\` |"; done < dist/SHA256SUMS.txt
+            echo
+            echo "## Aufspielen"
+            echo
+            echo "- **Switch läuft schon mit RTLPlayground:** in der Weboberfläche unter Firmware das passende \`.bin\` (512 KiB) hochladen. Die Startkonfiguration bleibt erhalten."
+            echo "- **Switch hat noch die Original-Firmware:** per Klemme, als 2-MB-Datei zusammen mit dem eigenen Backup (MAC und Werksdaten bleiben erhalten)."
+          } > dist/RELEASE_NOTES.md
+          cat dist/RELEASE_NOTES.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware
+          path: dist
+
+      - name: Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UP: ${{ needs.check.outputs.upstream_sha }}
+        run: |
+          tag="fw-$(date -u +%Y%m%d-%H%M)-${UP:0:7}"
+          gh release create "$tag" dist/*.bin dist/SHA256SUMS.txt \
+            -R "$GITHUB_REPOSITORY" --target main --prerelease \
+            --title "Firmware $(date -u +%d.%m.%Y) (${UP:0:7})" \
+            --notes-file dist/RELEASE_NOTES.md
