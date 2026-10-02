@@ -133,9 +133,9 @@ jobs:
             echo "## $title"
             echo
             log=$(git log --no-merges --format="- %s ([\`%h\`]($base/%H))" $range)
-            echo "${log:-(keine)}"
+            echo "${log:-Keine – Neubau wegen Änderungen an der deutschen Übersetzung.}"
             if [ "${range%%..*}" = "$LAST" ]; then
-              cl=$(git diff "$LAST" "$UP" -- CHANGELOG.md | grep '^+[^+]' | sed 's/^+//')
+              cl=$(git diff "$LAST" "$UP" -- CHANGELOG.md | { grep '^+[^+]' || true; } | sed 's/^+//')
               if [ -n "$cl" ]; then
                 echo
                 echo "## Neu im CHANGELOG"
