@@ -23,7 +23,7 @@ concurrency: weekly-upstream
 
 env:
   UPSTREAM: logicog/RTLPlayground
-  MACHINES: SWTGW218AS
+  MACHINES: SWTGW218AS KP_9000_9XHML_X_V3_1
 
 jobs:
   sync-main:
