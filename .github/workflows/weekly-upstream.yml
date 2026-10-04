@@ -141,9 +141,15 @@ jobs:
             range="-20 $UP"; title="Letzte Änderungen im Original"
           fi
           {
-            echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP) plus deutscher Übersetzung."
-            echo
-            echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Original-Commit, danach \`de.\` und der Commit der Übersetzung im Branch \`i18n-de\`)."
+            if [ "$BUILD_VERSION" = "${UP:0:7}" ]; then
+              echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP); die deutsche Übersetzung ist dort enthalten."
+              echo
+              echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Commit des Originals)."
+            else
+              echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP) plus deutscher Übersetzung."
+              echo
+              echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Original-Commit, danach \`de.\` und der Commit der Übersetzung im Branch \`i18n-de\`)."
+            fi
             echo
             echo "## $title"
             echo
