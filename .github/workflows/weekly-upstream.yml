@@ -171,7 +171,7 @@ jobs:
             echo "## $title"
             echo
             log=$(git log --no-merges --format="- %s ([\`%h\`]($base/%H))" $range)
-            echo "${log:-Keine – Neubau wegen Änderungen an der deutschen Übersetzung.}"
+            echo "${log:-Keine – Neubau wegen eigener Änderungen (siehe oben).}"
             if [ "${range%%..*}" = "$LAST" ]; then
               cl=$(git diff "$LAST" "$UP" -- CHANGELOG.md | { grep '^+[^+]' || true; } | sed 's/^+//')
               if [ -n "$cl" ]; then
