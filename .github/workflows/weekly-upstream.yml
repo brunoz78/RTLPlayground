@@ -23,7 +23,12 @@ concurrency: weekly-upstream
 
 env:
   UPSTREAM: logicog/RTLPlayground
-  MACHINES: SWTGW218AS KP_9000_9XHML_X_V3_1
+  MACHINES: SWTGW218AS KP_9000_9XHML_X_V3_1 KP_9000_9XHML_X_V3_2
+  # Own pull requests to the original that are not merged yet. Their commits
+  # are applied on top of the original until it contains them (git cherry
+  # compares the changes, so nothing has to be removed here after a merge).
+  # KP_9000_9XHML_X_V3_2 above comes from kp9000-v3_2 (logicog#545).
+  PATCH_BRANCHES: fw-machine-check kp9000-v3_2
 
 jobs:
   sync-main:
@@ -93,21 +98,31 @@ jobs:
           path: _fork
           sparse-checkout: .github/scripts
 
-      - name: Deutsche Übersetzung übernehmen
+      - name: Eigene offene Änderungen übernehmen
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Version im Image: Original-Commit, plus Commit der Übersetzung, z. B.
-          # v0.1.0-f0aea3d-de.89fcc68 (beide auf GitHub nachschlagbar)
-          if grep -q '^de:{' html/app.js; then
-            echo "Das Original enthält Deutsch bereits."
-            echo "BUILD_VERSION=${UP:0:7}" >> "$GITHUB_ENV"
-          else
-            git fetch "https://github.com/$GITHUB_REPOSITORY.git" i18n-de
-            git cherry-pick "$(git merge-base HEAD FETCH_HEAD)..FETCH_HEAD"
-            echo "BUILD_VERSION=${UP:0:7}-de.$(git rev-parse --short=7 FETCH_HEAD)" >> "$GITHUB_ENV"
-          fi
+          # Version im Image: Original-Commit, dahinter jeder angewendete Branch
+          # mit seinem Commit, z. B. v0.1.0-0e9c997-fw-machine-check.1a2b3c4
+          version="${UP:0:7}"
+          : > applied.txt
+          for br in $PATCH_BRANCHES; do
+            if ! git fetch -q "https://github.com/$GITHUB_REPOSITORY.git" "$br"; then
+              echo "Branch $br gibt es nicht mehr, übersprungen."
+              continue
+            fi
+            picks=$(git cherry HEAD FETCH_HEAD | sed -n 's/^+ //p')
+            if [ -z "$picks" ]; then
+              echo "$br: schon im Original enthalten."
+              continue
+            fi
+            git cherry-pick $picks
+            tip=$(git rev-parse --short=7 FETCH_HEAD)
+            version="$version-$br.$tip"
+            echo "$br $tip" >> applied.txt
+          done
+          echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
           python _fork/.github/scripts/check_i18n.py html/app.js de > missing_de.txt
           echo "Fehlende deutsche Texte: $(wc -l < missing_de.txt)"
 
@@ -141,15 +156,17 @@ jobs:
             range="-20 $UP"; title="Letzte Änderungen im Original"
           fi
           {
-            if [ "$BUILD_VERSION" = "${UP:0:7}" ]; then
-              echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP); die deutsche Übersetzung ist dort enthalten."
+            echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP)."
+            if [ -s applied.txt ]; then
               echo
-              echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Commit des Originals)."
-            else
-              echo "Automatischer Build aus dem Original-Stand [\`${UP:0:7}\`]($base/$UP) plus deutscher Übersetzung."
+              echo "Zusätzlich enthalten – eigene Änderungen, die im Original noch fehlen:"
               echo
-              echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Original-Commit, danach \`de.\` und der Commit der Übersetzung im Branch \`i18n-de\`)."
+              while read -r br tip; do
+                echo "- [\`$br\`](https://github.com/$GITHUB_REPOSITORY/tree/$br) (\`$tip\`)"
+              done < applied.txt
             fi
+            echo
+            echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Commit des Originals, danach die zusätzlich enthaltenen Branches)."
             echo
             echo "## $title"
             echo
