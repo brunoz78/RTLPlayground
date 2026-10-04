@@ -31,7 +31,7 @@ env:
   # are applied on top of the original until it contains them (git cherry
   # compares the changes, so nothing has to be removed here after a merge).
   # KP_9000_9XHML_X_V3_2 above comes from kp9000-v3_2 (logicog#545).
-  PATCH_BRANCHES: fw-machine-check kp9000-v3_2
+  PATCH_BRANCHES: fw-machine-check kp9000-v3_2 tab-hostname
 
 jobs:
   sync-main:
