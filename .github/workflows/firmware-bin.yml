@@ -2,14 +2,14 @@ name: Firmware-Images bauen
 
 # Baut RTLPlayground-Images für die eigenen Geräte und stellt sie als
 # herunterladbares Artefakt bereit. Start von Hand über „Run workflow“;
-# gebaut wird der angegebene Branch, standardmässig die Übersetzung.
+# gebaut wird der angegebene Branch, standardmässig main (enthält seit #543 auch Deutsch).
 
 on:
   workflow_dispatch:
     inputs:
       ref:
         description: Branch, Tag oder Commit, der gebaut wird
-        default: i18n-de
+        default: main
         required: true
       machines:
         description: Build-Ziele (MACHINE), durch Leerzeichen getrennt
