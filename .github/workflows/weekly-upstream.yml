@@ -103,9 +103,9 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Version im Image: Original-Commit, dahinter jeder angewendete Branch
-          # mit seinem Commit, z. B. v0.1.0-0e9c997-fw-machine-check.1a2b3c4
-          version="${UP:0:7}"
+          # Version im Image: Original-Commit, dahinter die Zahl der angewendeten
+          # Branches (p = Patches), z. B. v0.1.0-0e9c997-p2; welche es sind, steht
+          # in den Release-Notizen
           : > applied.txt
           for br in $PATCH_BRANCHES; do
             if ! git fetch -q "https://github.com/$GITHUB_REPOSITORY.git" "$br"; then
@@ -119,10 +119,14 @@ jobs:
             fi
             git cherry-pick $picks
             tip=$(git rev-parse --short=7 FETCH_HEAD)
-            version="$version-$br.$tip"
             echo "$br $tip" >> applied.txt
           done
-          echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
+          n=$(wc -l < applied.txt)
+          if [ "$n" -gt 0 ]; then
+            echo "BUILD_VERSION=${UP:0:7}-p$n" >> "$GITHUB_ENV"
+          else
+            echo "BUILD_VERSION=${UP:0:7}" >> "$GITHUB_ENV"
+          fi
           python _fork/.github/scripts/check_i18n.py html/app.js de > missing_de.txt
           echo "Fehlende deutsche Texte: $(wc -l < missing_de.txt)"
 
@@ -166,7 +170,7 @@ jobs:
               done < applied.txt
             fi
             echo
-            echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Commit des Originals, danach die zusätzlich enthaltenen Branches)."
+            echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Commit des Originals, danach \`p\` und die Zahl der zusätzlich enthaltenen Änderungen)."
             echo
             echo "## $title"
             echo
