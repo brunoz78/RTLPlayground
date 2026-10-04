@@ -23,7 +23,7 @@ concurrency: weekly-upstream
 
 env:
   UPSTREAM: logicog/RTLPlayground
-  MACHINES: SWTGW218AS KP_9000_9XHML_X_V3_1 KP_9000_9XHML_X_V3_2
+  MACHINES: SWTGW218AS LIANGUO_ZX_SWTGW215AS KP_9000_9XHML_X_V3_1 KP_9000_9XHML_X_V3_2
   # Own pull requests to the original that are not merged yet. Their commits
   # are applied on top of the original until it contains them (git cherry
   # compares the changes, so nothing has to be removed here after a merge).
