@@ -2,8 +2,11 @@ name: Wöchentlicher Abgleich mit dem Original
 
 # Jede Woche in der Nacht auf Freitag:
 #  1. main dieses Forks mit logicog/RTLPlayground abgleichen („Sync fork“),
-#  2. falls das Original neue Commits hat: Original + deutsche Übersetzung
-#     (Branch i18n-de) bauen und als Release mit Änderungsliste veröffentlichen.
+#  2. falls das Original neue Commits hat: Original + eigene, dort noch fehlende
+#     Änderungen (PATCH_BRANCHES) bauen und als Release mit Änderungsliste
+#     veröffentlichen.
+# Die OEM-Installer für die Erstinstallation baut nur bei Bedarf der Workflow
+# „Erstinstallation“ (erstinstallation.yml).
 # GitHub benachrichtigt über neue Releases und schlägt bei Fehlern per Mail an.
 
 on:
@@ -55,8 +58,8 @@ jobs:
           FORCE: ${{ inputs.force }}
         run: |
           up=$(git ls-remote "https://github.com/$UPSTREAM.git" refs/heads/main | cut -f1)
-          tag=$(gh release list -R "$GITHUB_REPOSITORY" --limit 1 --exclude-drafts \
-                  --json tagName --jq '.[0].tagName // ""')
+          tag=$(gh release list -R "$GITHUB_REPOSITORY" --limit 20 --exclude-drafts \
+                  --json tagName --jq '[.[].tagName | select(startswith("fw-"))][0] // ""')
           last=${tag##*-} # Tag-Muster fw-JJJJMMTT-HHMM-<sha7>
           changed=false
           if [ -z "$tag" ] || [ "${up:0:7}" != "$last" ] || [ "$FORCE" = "true" ]; then
@@ -137,18 +140,9 @@ jobs:
             make clean >/dev/null
             make CI=1 MACHINE="$m" GIT_VERSION="$BUILD_VERSION"
             cp output/"$m"/rtlplayground-*-"$m".bin dist/
-            # Image for the first install through the web interface of the
-            # original firmware; it wraps output/rtlplayground.bin (this machine)
-            rm -rf installer/output
-            make -C installer
-            cp installer/output/rtlplayground_oem_upgrade.bin \
-              dist/rtlplayground-v0.1.0-"$BUILD_VERSION"-"$m"-oem-installer.bin
           done
           cd dist
-          for f in *.bin; do
-            case "$f" in *-oem-installer.bin) continue ;; esac
-            test "$(stat -c %s "$f")" -eq 524288
-          done
+          for f in *.bin; do test "$(stat -c %s "$f")" -eq 524288; done
           sha256sum *.bin > SHA256SUMS.txt
 
       - name: Release-Notizen schreiben
@@ -203,7 +197,7 @@ jobs:
             echo "## Aufspielen"
             echo
             echo "- **Switch läuft schon mit RTLPlayground:** in der Weboberfläche unter Firmware das passende \`.bin\` (512 KiB) hochladen. Die Startkonfiguration bleibt erhalten."
-            echo "- **Switch hat noch die Original-Firmware:** per Klemme, als 2-MB-Datei zusammen mit dem eigenen Backup (MAC und Werksdaten bleiben erhalten) – oder über die Firmware-Update-Seite der Original-Weboberfläche mit dem passenden \`…-oem-installer.bin\`. Achtung: Danach führt kein Weg über die Weboberfläche zurück zur Original-Firmware, nur noch per Klemme."
+            echo "- **Switch hat noch die Original-Firmware:** per Klemme, als 2-MB-Datei zusammen mit dem eigenen Backup (MAC und Werksdaten bleiben erhalten) – oder einmalig über die Firmware-Update-Seite der Original-Weboberfläche mit dem OEM-Installer aus [Erstinstallation](https://github.com/$GITHUB_REPOSITORY/releases/tag/erstinstallation), danach mit den Dateien hier aktualisieren. Achtung: Danach führt kein Weg über die Weboberfläche zurück zur Original-Firmware, nur noch per Klemme."
           } > dist/RELEASE_NOTES.md
           cat dist/RELEASE_NOTES.md
 

@@ -1,0 +1,143 @@
+name: Erstinstallation (OEM-Installer)
+
+# Baut bei Bedarf die OEM-Installer für den ersten Wechsel von der
+# Original-Firmware auf RTLPlayground und legt sie im festen Release
+# „erstinstallation“ ab (eine Datei pro Gerät, wird beim erneuten Bauen
+# ersetzt). Danach wird nur noch mit den normalen 512-KiB-Images aus den
+# wöchentlichen Releases aktualisiert.
+
+on:
+  workflow_dispatch:
+    inputs:
+      machines:
+        description: Geräte (Build-Ziele, mit Leerzeichen getrennt)
+        type: string
+        default: SWTGW218AS LIANGUO_ZX_SWTGW215AS KP_9000_9XHML_X_V3_1 KP_9000_9XHML_X_V3_2
+
+permissions:
+  contents: write
+
+concurrency: erstinstallation
+
+env:
+  UPSTREAM: logicog/RTLPlayground
+  TAG: erstinstallation
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    env:
+      MACHINES: ${{ inputs.machines }}
+    steps:
+      - name: Abhängigkeiten installieren
+        run: |
+          apt-get update
+          apt-get install -y make gcc sdcc xxd python-is-python3 libjson-c-dev zlib1g-dev git
+
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ env.UPSTREAM }}
+          fetch-depth: 0
+
+      - uses: actions/checkout@v6
+        with:
+          path: _fork
+          sparse-checkout: .github/workflows
+
+      - name: Eigene offene Änderungen übernehmen
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Gleiche Liste wie beim wöchentlichen Build, damit beide dasselbe enthalten
+          branches=$(sed -n 's/^  PATCH_BRANCHES: //p' _fork/.github/workflows/weekly-upstream.yml)
+          up=$(git rev-parse --short=7 HEAD)
+          n=0
+          for br in $branches; do
+            git fetch -q "https://github.com/$GITHUB_REPOSITORY.git" "$br" || continue
+            picks=$(git cherry HEAD FETCH_HEAD | sed -n 's/^+ //p')
+            [ -z "$picks" ] && continue
+            git cherry-pick $picks
+            n=$((n + 1))
+          done
+          version="$up"
+          [ "$n" -gt 0 ] && version="$up-p$n"
+          echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Installer bauen
+        run: |
+          mkdir -p dist
+          for m in $MACHINES; do
+            make clean >/dev/null
+            make CI=1 MACHINE="$m" GIT_VERSION="$BUILD_VERSION"
+            rm -rf installer/output
+            make -C installer
+            cp installer/output/rtlplayground_oem_upgrade.bin dist/rtlplayground-oem-installer-"$m".bin
+          done
+          echo "$BUILD_VERSION" > dist/VERSION
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer
+          path: dist
+
+      - name: Im Release „Erstinstallation“ ablegen
+        run: |
+          version="v0.1.0-$(cat dist/VERSION)"
+          day=$(date -u +%d.%m.%Y)
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target main --latest \
+              --title "Erstinstallation (OEM-Installer)" --notes "Wird gleich ausgefüllt."
+          fi
+          for f in dist/rtlplayground-oem-installer-*.bin; do
+            m=${f#dist/rtlplayground-oem-installer-}; m=${m%.bin}
+            case "$m" in
+              SWTGW218AS) name="ZX-SWTGW218AS" ;;
+              LIANGUO_ZX_SWTGW215AS) name="ZX-SWTGW215AS" ;;
+              KP_9000_9XHML_X_V3_1) name="KP-9000 V3.1" ;;
+              KP_9000_9XHML_X_V3_2) name="KP-9000 V3.2" ;;
+              *) name="$m" ;;
+            esac
+            # Anzeigename in der Dateiliste: Gerät · Version · Datum
+            gh release upload "$TAG" "$f#$name · $version · $day" --clobber
+          done
+
+      - name: Übersicht schreiben
+        run: |
+          {
+            echo "OEM-Installer für den **einmaligen** Wechsel von der Original-Firmware auf RTLPlayground."
+            echo
+            echo "1. In der Weboberfläche der **Original-Firmware** unter Firmware-Update die Datei des passenden Geräts hochladen."
+            echo "2. Danach nur noch mit den normalen \`.bin\` (512 KiB) aus dem [neuesten wöchentlichen Release](https://github.com/$GH_REPO/releases) aktualisieren, in der Weboberfläche von RTLPlayground unter Firmware."
+            echo
+            echo "⚠️ Nicht auf einem Switch verwenden, der schon RTLPlayground hat. Zurück zur Original-Firmware geht es danach nur noch per Klemme."
+            echo
+            echo "| Gerät | Datei | Stand | SHA-256 |"
+            echo "|---|---|---|---|"
+            gh api "repos/$GH_REPO/releases/tags/$TAG" --jq '.assets | sort_by(.label)[] | [.label, .name, .browser_download_url, .digest] | @tsv' |
+              while IFS=$'\t' read -r label file url digest; do
+                dev=${label%% · *}; rest=${label#* · }
+                ver=${rest%% · *}; day=${rest#* · }
+                echo "| $dev | [\`$file\`]($url) | $day (\`$ver\`) | \`${digest#sha256:}\` |"
+              done
+          } > notes.md
+          cat notes.md
+          gh release edit "$TAG" --notes-file notes.md
