@@ -224,6 +224,6 @@ jobs:
         run: |
           tag="fw-$(date -u +%Y%m%d-%H%M)-${UP:0:7}"
           gh release create "$tag" dist/*.bin dist/SHA256SUMS.txt \
-            -R "$GITHUB_REPOSITORY" --target main --prerelease \
+            -R "$GITHUB_REPOSITORY" --target main --latest \
             --title "Firmware $(date -u +%d.%m.%Y) (${UP:0:7})" \
             --notes-file dist/RELEASE_NOTES.md

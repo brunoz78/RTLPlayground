@@ -104,7 +104,7 @@ jobs:
           version="v0.1.0-$(cat dist/VERSION)"
           day=$(date -u +%d.%m.%Y)
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --target main --latest \
+            gh release create "$TAG" --target main --latest=false \
               --title "Erstinstallation (OEM-Installer)" --notes "Wird gleich ausgefüllt."
           fi
           for f in dist/rtlplayground-oem-installer-*.bin; do
