@@ -159,7 +159,9 @@ jobs:
               echo "Zusätzlich enthalten – eigene Änderungen, die im Original noch fehlen:"
               echo
               while read -r br tip; do
-                echo "- [\`$br\`](https://github.com/$GITHUB_REPOSITORY/tree/$br) (\`$tip\`)"
+                # Deutsche Kurzbeschreibung aus .github/scripts/patch-descriptions.txt
+                d=$(awk -F'	' -v b="$br" '$1 == b { print $2 }' _fork/.github/scripts/patch-descriptions.txt)
+                echo "- [\`$br\`](https://github.com/$GITHUB_REPOSITORY/tree/$br) (\`$tip\`)${d:+ – $d}"
               done < applied.txt
             fi
             echo

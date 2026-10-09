@@ -1,0 +1,7 @@
+# Deutsche Kurzbeschreibung der eigenen Änderungen für die Release-Notizen
+# Format: Branch<TAB>Beschreibung
+fw-machine-check	Warnung, wenn ein Image für ein anderes Gerät hochgeladen wird
+tab-hostname	Hostname im Browser-Tab und auf der Anmeldeseite
+multi-session	vier gleichzeitige Anmeldungen
+de-isolation	deutsche Texte der Isolation-Seite
+rx-wedge-fix	Fix gegen das Hängenbleiben der Verwaltung (Weboberfläche, Ping)
