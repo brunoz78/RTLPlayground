@@ -6,3 +6,4 @@ multi-session	vier gleichzeitige Anmeldungen
 de-isolation	deutsche Texte der Isolation-Seite
 rx-wedge-fix	Fix gegen das Hängenbleiben der Verwaltung (Weboberfläche, Ping)
 info-uptime	Betriebszeit in der Übersicht und in /information.json
+config-backup	Konfiguration als Datei sichern und wiederherstellen (Systemseite)

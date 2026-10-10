@@ -30,7 +30,7 @@ env:
   # Own pull requests to the original that are not merged yet. Their commits
   # are applied on top of the original until it contains them (git cherry
   # compares the changes, so nothing has to be removed here after a merge).
-  PATCH_BRANCHES: fw-machine-check tab-hostname multi-session de-isolation rx-wedge-fix info-uptime
+  PATCH_BRANCHES: fw-machine-check tab-hostname multi-session de-isolation rx-wedge-fix info-uptime config-backup
 
 jobs:
   sync-main:
