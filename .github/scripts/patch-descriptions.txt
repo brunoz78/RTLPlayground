@@ -4,6 +4,6 @@ fw-machine-check	Warnung, wenn ein Image für ein anderes Gerät hochgeladen wir
 tab-hostname	Hostname im Browser-Tab und auf der Anmeldeseite
 multi-session	vier gleichzeitige Anmeldungen
 de-isolation	deutsche Texte der Isolation-Seite
-rx-wedge-fix	Fix gegen das Hängenbleiben der Verwaltung (Weboberfläche, Ping)
+rx-wedge-lite	Fix gegen das Hängenbleiben der Verwaltung (Weboberfläche, Ping), ohne /diag.json
 info-uptime	Betriebszeit in der Übersicht und in /information.json
 config-backup	Konfiguration als Datei sichern und wiederherstellen (Systemseite)
