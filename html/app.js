@@ -83,7 +83,7 @@ sy_services_note:"Service state reflects the startup config; runtime state is no
 sy_password:"Admin password",sy_newpw:"New password",sy_repeat:"Repeat",sy_pwapply:"Change password",
 sy_pw_note:"Takes effect immediately; save to flash to keep it after reboot.",sy_console:"Console",
 sy_cmd:"CLI command...",sy_send:"Send",sy_startup:"Startup configuration",sy_replayed:"replayed on every boot",
-sy_reload:"Reload from flash",sy_write:"Write to flash",sy_unknown_note:"Unknown lines are highlighted before writing.",
+sy_reload:"Reload from flash",sy_write:"Write to flash",sy_backup:"Back up",sy_backup_t:"Download the startup configuration as a file (it includes the admin password in plain text)",sy_restore:"Restore...",sy_restore_t:"Load a saved configuration file; it is shown for checking before it is written to flash",cw_restore_title:"Restore configuration",cw_readfail:"The file could not be read",sy_unknown_note:"Unknown lines are highlighted before writing.",
 sy_maint:"Maintenance",sy_reboot:"Reboot switch",sy_lang:"Language",
 sy_ip_err:"Invalid IP / netmask / gateway",sy_host_err:"Hostname: 1-23 printable characters, no spaces or quotes",
 sy_net_q:"Apply network settings?",sy_net_d:"The management IP changes to {ip}: this page will need to be reopened there.",
@@ -196,7 +196,7 @@ sy_services_note:"サービスの状態は起動設定を反映しています�
 sy_password:"管理者パスワード",sy_newpw:"新しいパスワード",sy_repeat:"再入力",sy_pwapply:"パスワードを変更",
 sy_pw_note:"即時に反映されます。再起動後も保持するにはフラッシュに保存してください。",sy_console:"コンソール",
 sy_cmd:"CLI コマンド...",sy_send:"送信",sy_startup:"起動設定",sy_replayed:"起動のたびに再実行されます",
-sy_reload:"フラッシュから再読み込み",sy_write:"フラッシュに書き込み",sy_unknown_note:"不明な行は書き込み前に強調表示されます。",
+sy_reload:"フラッシュから再読み込み",sy_write:"フラッシュに書き込み",sy_backup:"バックアップ",sy_backup_t:"起動設定をファイルとしてダウンロード（管理者パスワードが平文で含まれます）",sy_restore:"復元...",sy_restore_t:"保存した設定ファイルを読み込みます。フラッシュに書き込む前に確認のため表示されます",cw_restore_title:"設定の復元",cw_readfail:"ファイルを読み込めませんでした",sy_unknown_note:"不明な行は書き込み前に強調表示されます。",
 sy_maint:"メンテナンス",sy_reboot:"スイッチを再起動",sy_lang:"言語",
 sy_ip_err:"IP / ネットマスク / ゲートウェイが無効です",sy_host_err:"ホスト名: 1〜23 文字の印字可能文字、空白と引用符は不可",
 sy_net_q:"ネットワーク設定を適用しますか?",sy_net_d:"管理 IP が {ip} に変わります。このページは新しいアドレスで開き直す必要があります。",
@@ -309,7 +309,7 @@ sy_services_note:"服务状态反映启动配置；运行时状态无法读取�
 sy_password:"管理员密码",sy_newpw:"新密码",sy_repeat:"重复输入",sy_pwapply:"修改密码",
 sy_pw_note:"立即生效；如需重启后保留请保存到 Flash。",sy_console:"控制台",
 sy_cmd:"CLI 命令...",sy_send:"发送",sy_startup:"启动配置",sy_replayed:"每次启动时重新执行",
-sy_reload:"从 Flash 重新读取",sy_write:"写入 Flash",sy_unknown_note:"未知行会在写入前高亮显示。",
+sy_reload:"从 Flash 重新读取",sy_write:"写入 Flash",sy_backup:"备份",sy_backup_t:"将启动配置下载为文件（包含明文管理员密码）",sy_restore:"恢复...",sy_restore_t:"加载已保存的配置文件；写入 Flash 前会显示以供检查",cw_restore_title:"恢复配置",cw_readfail:"无法读取文件",sy_unknown_note:"未知行会在写入前高亮显示。",
 sy_maint:"维护",sy_reboot:"重启交换机",sy_lang:"语言",
 sy_ip_err:"IP / 子网掩码 / 网关无效",sy_host_err:"主机名: 1-23 个可打印字符，不能包含空格或引号",
 sy_net_q:"应用网络设置?",sy_net_d:"管理 IP 将变为 {ip}，需要使用新地址重新打开本页面。",
@@ -422,7 +422,7 @@ sy_services_note:"El estado del servicio refleja la configuración de inicio; el
 sy_password:"Contraseña de administrador",sy_newpw:"Nueva contraseña",sy_repeat:"Repetir",sy_pwapply:"Cambiar contraseña",
 sy_pw_note:"Toma efecto inmediatamente; guarda en flash para conservarla tras el reinicio.",sy_console:"Consola",
 sy_cmd:"Comando de CLI...",sy_send:"Enviar",sy_startup:"Configuración de inicio",sy_replayed:"reaplicada en cada arranque",
-sy_reload:"Recargar desde flash",sy_write:"Escribir en flash",sy_unknown_note:"Las líneas desconocidas se resaltan antes de escribir.",
+sy_reload:"Recargar desde flash",sy_write:"Escribir en flash",sy_backup:"Copia de seguridad",sy_backup_t:"Descargar la configuración de inicio como archivo (incluye la contraseña de administrador en texto claro)",sy_restore:"Restaurar...",sy_restore_t:"Cargar un archivo de configuración guardado; se muestra para revisarlo antes de escribirlo en flash",cw_restore_title:"Restaurar configuración",cw_readfail:"No se pudo leer el archivo",sy_unknown_note:"Las líneas desconocidas se resaltan antes de escribir.",
 sy_maint:"Mantenimiento",sy_reboot:"Reiniciar switch",sy_lang:"Idioma",
 sy_ip_err:"IP / máscara / puerta de enlace no válidos",sy_host_err:"Nombre de host: 1-23 caracteres imprimibles, sin espacios ni comillas",
 sy_net_q:"¿Aplicar ajustes de red?",sy_net_d:"La IP de gestión cambia a {ip}: esta página deberá reabrirse allí.",
@@ -534,7 +534,7 @@ sy_services_note:"L'état de service dépend de la configuration de démarrage; 
 sy_password:"Gestion de l'accès",sy_newpw:"Mot de passe",sy_repeat:"Confirmation",sy_pwapply:"Changer le mot de passe",
 sy_pw_note:"Prends effet immédiatement; Sauvegardez en flash afin de conserver la configuration lors du redémarrage.",sy_console:"Console",
 sy_cmd:"Ligne de commande...",sy_send:"Envoyer",sy_startup:"Configuration de démarrage",sy_replayed:"Rejouée à chaque redémarrage",
-sy_reload:"Recharger depuis la mémoire flash",sy_write:"Ecrire en mémoire flash",sy_unknown_note:"Les lignes incorrectes sont mises en évidence avant l'écriture.",
+sy_reload:"Recharger depuis la mémoire flash",sy_write:"Ecrire en mémoire flash",sy_backup:"Sauvegarder",sy_backup_t:"Télécharger la configuration de démarrage dans un fichier (contient le mot de passe admin en clair)",sy_restore:"Restaurer...",sy_restore_t:"Charger un fichier de configuration enregistré ; il est affiché pour vérification avant l'écriture en mémoire flash",cw_restore_title:"Restaurer la configuration",cw_readfail:"Impossible de lire le fichier",sy_unknown_note:"Les lignes incorrectes sont mises en évidence avant l'écriture.",
 sy_maint:"Maintenance",sy_reboot:"Redémarre le commutateur",sy_lang:"Langage",
 sy_ip_err:"Erreur d'IP / masque réseau / passerelle",sy_host_err:"Nom d'hôte : 1 à 23 caractères, sans espace ni apostrophes",
 sy_net_q:"Appliquer les paramètres réseau?",sy_net_d:"L'adresse IP de  management va devenir {ip}: merci de réouvrir le page depuis cette adresse.",
@@ -650,7 +650,7 @@ sy_services_note:"Der Dienststatus entspricht der Startkonfiguration; der laufen
 sy_password:"Admin-Passwort",sy_newpw:"Neues Passwort",sy_repeat:"Wiederholen",sy_pwapply:"Passwort ändern",
 sy_pw_note:"Wirkt sofort; im Flash speichern, damit es nach einem Neustart erhalten bleibt.",sy_console:"Konsole",
 sy_cmd:"CLI-Befehl...",sy_send:"Senden",sy_startup:"Startkonfiguration",sy_replayed:"wird bei jedem Start ausgeführt",
-sy_reload:"Aus dem Flash neu laden",sy_write:"In den Flash schreiben",sy_unknown_note:"Unbekannte Zeilen werden vor dem Schreiben hervorgehoben.",
+sy_reload:"Aus dem Flash neu laden",sy_write:"In den Flash schreiben",sy_backup:"Sichern",sy_backup_t:"Startkonfiguration als Datei herunterladen (enthält das Admin-Passwort im Klartext)",sy_restore:"Wiederherstellen...",sy_restore_t:"Gespeicherte Konfigurationsdatei laden; sie wird vor dem Schreiben in den Flash zur Kontrolle angezeigt",cw_restore_title:"Konfiguration wiederherstellen",cw_readfail:"Die Datei konnte nicht gelesen werden",sy_unknown_note:"Unbekannte Zeilen werden vor dem Schreiben hervorgehoben.",
 sy_maint:"Wartung",sy_reboot:"Switch neu starten",sy_lang:"Sprache",
 sy_ip_err:"Ungültige IP / Netzmaske / Gateway",sy_host_err:"Hostname: 1-23 druckbare Zeichen, keine Leerzeichen oder Anführungszeichen",
 sy_net_q:"Netzwerkeinstellungen übernehmen?",sy_net_d:"Die Management-IP ändert sich auf {ip}: Diese Seite muss dort neu geöffnet werden.",
@@ -2106,6 +2106,25 @@ $("cfgedit").addEventListener("input",cfgBytes);
 $("cfgreload").addEventListener("click",cfgReload);
 $("cfgwrite").addEventListener("click",function(){
   writeConfig($("cfgedit").value,t("cw_title"));
+});
+/* Back up: the startup configuration as it is in flash, named after the switch */
+$("cfgbackup").addEventListener("click",function(){
+  getText("/config").then(function(x){
+    x=x.replace(/\0[\s\S]*$/,"");
+    var d=new Date(),p=function(n){return(n<10?"0":"")+n};
+    var name=(S.info&&S.info.hostname||"switch").replace(/[^\w.-]+/g,"_")+"-config-"
+      +d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+".txt";
+    var a=h("a",{href:URL.createObjectURL(new Blob([x],{type:"text/plain"})),download:name});
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000);
+  }).catch(function(e){toast(e.message||String(e),"err")});
+});
+/* Restore: the file goes through the same check and write dialog as an edit */
+$("cfgrestore").addEventListener("click",function(){$("cfgfile").value="";$("cfgfile").click()});
+$("cfgfile").addEventListener("change",function(){
+  var f=this.files[0];
+  if(!f)return;
+  f.text().then(function(x){writeConfig(x,t("cw_restore_title"))},function(){toast(t("cw_readfail"),"err")});
 });
 tabHooks.system={enter:sysLoad};
 
