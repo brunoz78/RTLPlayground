@@ -5,3 +5,4 @@ tab-hostname	Hostname im Browser-Tab und auf der Anmeldeseite
 multi-session	vier gleichzeitige Anmeldungen
 de-isolation	deutsche Texte der Isolation-Seite
 rx-wedge-fix	Fix gegen das Hängenbleiben der Verwaltung (Weboberfläche, Ping)
+info-uptime	Betriebszeit in der Übersicht und in /information.json
