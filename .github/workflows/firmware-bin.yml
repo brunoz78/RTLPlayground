@@ -45,7 +45,11 @@ jobs:
           mkdir -p dist
           for m in $MACHINES; do
             make clean >/dev/null
-            make CI=1 MACHINE="$m"
+            ok=0; make CI=1 MACHINE="$m" || ok=$?
+            # Belegung der Code-Bänke (BANK1 = Webserver und Netzwerk, max. 0xC000)
+            echo "Speicherbelegung $m:"
+            grep -h -E "^(HOME|BANK[0-9]|CSEG|XSEG|DSEG)[[:space:]]" output/"$m"/rtlplayground.map || true
+            [ "$ok" -eq 0 ] || exit "$ok"
             cp output/"$m"/rtlplayground-*-"$m".bin dist/
           done
 
