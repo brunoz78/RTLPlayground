@@ -90,7 +90,7 @@ sy_ip_err:"Invalid IP / netmask / gateway",sy_host_err:"Hostname: 1-23 printable
 sy_net_q:"Apply network settings?",sy_net_d:"The management IP changes to {ip}: this page will need to be reopened there.",
 sy_ip_changed:"IP changed, reconnect at http://{ip}/",sy_dhcp_q:"Switch to DHCP?",
 sy_dhcp_d:"The switch requests an address via DHCP. You must find its new IP to reconnect.",
-sy_sysip_err:"Invalid syslog server IP",sy_sysport_err:"Syslog port must be 1-65535",
+sy_sysip_err:"Invalid syslog server IP",sy_dns1:"DNS server",sy_dns2:"Second DNS",sy_dns_err:"Invalid DNS server IP",sy_dns_dhcp:"from DHCP: {ip}",sy_sysport_err:"Syslog port must be 1-65535",
 sy_pw_len:"Password: 1-20 characters",sy_pw_space:"Password cannot contain spaces",sy_pw_match:"Passwords do not match",
 sy_pw_q:"Change admin password?",sy_pw_d:"Takes effect immediately for new logins. Save to flash to persist.",
 sy_reboot_q:"Reboot the switch?",sy_reboot_d:"There are UNSAVED changes and they will be lost. Save to flash first if you want to keep them.",
@@ -109,6 +109,7 @@ fw_intro:"Upload an RTLPlayground image (512 KiB .bin). The image is staged to f
 fw_upload:"Upload",fw_checking:"{f}: {n} bytes. Checking...",fw_size_err:"size is {n}, expected 524288 (512 KiB)",
 fw_magic_err:"missing bank header / LJMP magic: not a firmware image",fw_crc_err:"CRC16 check failed: corrupt image",
 fw_valid:"valid RTLPlayground image (size, magic and CRC16 OK)",fw_q:"Upload firmware?",
+fw_other:"This image was not built for this switch ({m}): its SFP, LED and button pins may differ. Upload it only if you are sure.",
 fw_d:"On a good checksum the switch resets itself and applies the image during boot (the startup config is preserved). Do not power it off until it comes back.",
 fw_finishing:"finishing flash write... {s} s",fw_uploading:"uploading... {p}% / {s} s",
 fw_verified:"checksum verified, the switch is rebooting...",
@@ -676,6 +677,7 @@ fw_intro:"Ein RTLPlayground-Image hochladen (.bin, 512 KiB). Das Image wird im F
 fw_upload:"Hochladen",fw_checking:"{f}: {n} Bytes. Wird geprüft...",fw_size_err:"Grösse ist {n}, erwartet 524288 (512 KiB)",
 fw_magic_err:"Bank-Header / LJMP-Kennung fehlt: kein Firmware-Image",fw_crc_err:"CRC16-Prüfung fehlgeschlagen: Image beschädigt",
 fw_valid:"gültiges RTLPlayground-Image (Grösse, Kennung und CRC16 in Ordnung)",fw_q:"Firmware hochladen?",
+fw_other:"Dieses Image wurde nicht für diesen Switch ({m}) gebaut: SFP-, LED- und Tasten-Pins können abweichen. Nur hochladen, wenn du sicher bist.",
 fw_d:"Ist die Prüfsumme korrekt, startet der Switch neu und übernimmt das Image beim Hochfahren (die Startkonfiguration bleibt erhalten). Nicht vom Strom trennen, bis er wieder erreichbar ist.",
 fw_finishing:"Flash wird fertig beschrieben... {s} s",fw_uploading:"wird hochgeladen... {p}% / {s} s",
 fw_verified:"Prüfsumme bestätigt, der Switch startet neu...",
@@ -782,6 +784,7 @@ var CONF_CMDS=[
   /^gw\s+(\d{1,3}\.){3}\d{1,3}$/,/^netmask\s+(\d{1,3}\.){3}\d{1,3}$/,
   /^syslog\s+(on|off)$/,/^syslog\s+ip\s+(\d{1,3}\.){3}\d{1,3}$/,/^syslog\s+port\s+\d{1,5}$/,
   /^session\s+\d{1,5}$/,
+  /^dns\s+server\s+(\d{1,3}\.){3}\d{1,3}(\s+(\d{1,3}\.){3}\d{1,3})?$/,
   /^passwd\s+\S+$/,/^hostname\s+\S{1,23}$/,
   /^vlan\s+\d{1,4}\s+d$/,/^vlan\s+\d{1,4}\s+mgmt$/,
   /^vlan\s+\d{1,4}(\s+[a-zA-Z]\w*)?(\s+\d{1,2}t?)+$/,
@@ -1051,7 +1054,11 @@ function renderInfo(){
     if(v==null||v==="")return;
     tb.appendChild(h("tr",null,[h("td",{class:"mut",text:t(r[0])}),h("td",{class:"mono",text:String(v)})]));
   });
-  if(S.info.hostname)$("brandname").textContent=$("brandname").title=S.info.hostname;
+  if(S.info.hostname){
+    $("brandname").textContent=$("brandname").title=document.title=S.info.hostname;
+    // Remembered per switch (each has its own origin) for the login page tab
+    try{localStorage.setItem("rtl_host",S.info.hostname);}catch(e){}
+  }
   if(S.info.sw_ver)$("fver").textContent="RTLPlayground "+S.info.sw_ver;
 }
 function pollInfo(){
@@ -2022,6 +2029,16 @@ function sysLoad(){
     if(S.info.session_timeout)$("sy-sesstmo").value=S.info.session_timeout;
   }).catch(function(){});
   cfgReload();
+  dnsLoad();
+}
+function dnsLoad(){
+  return api("/cmd",{method:"POST",body:"dns"}).then(function(r){
+    var m=r.body.match(/DNS servers ([\d.]+) ([\d.]+), from DHCP ([\d.]+)/);
+    if(!m)return;
+    function v(x){return x==="0.0.0.0"?"":x}
+    $("sy-dns1").value=v(m[1]);$("sy-dns2").value=v(m[2]);
+    $("sy-dnsdhcp").textContent=m[3]==="0.0.0.0"?"":t("sy_dns_dhcp",{ip:m[3]});
+  }).catch(function(){});
 }
 function cfgParseKnown(txt){
   var igmp=false,syslog=false;
@@ -2038,13 +2055,15 @@ function cfgParseKnown(txt){
 $("sy-apply").addEventListener("click",function(){
   var ip=$("sy-ip").value.trim(),mask=$("sy-mask").value.trim(),gw=$("sy-gw").value.trim();
   if(!okIp(ip)||!okIp(mask)||!okIp(gw)){toast(t("sy_ip_err"),"err");return;}
+  var d1=$("sy-dns1").value.trim(),d2=$("sy-dns2").value.trim();
+  if((d1&&!okIp(d1))||(d2&&!okIp(d2))){toast(t("sy_dns_err"),"err");return;}
   var cmds=[];
   var hn=$("sy-host").value.trim();
   if(hn&&hn!==S.info.hostname){
     if(!/^[\x21-\x7e]{1,23}$/.test(hn)||/["\\]/.test(hn)){toast(t("sy_host_err"),"err");return;}
     cmds.push("hostname "+hn);
   }
-  cmds.push("ip "+ip+"\nnetmask "+mask+"\ngw "+gw);
+  cmds.push("ip "+ip+"\nnetmask "+mask+"\ngw "+gw+"\ndns server "+(d1||"0.0.0.0")+(d2?" "+d2:""));
   var changingIp=ip!==S.info.ip_address;
   confirmModal(t("sy_net_q"),changingIp?t("sy_net_d",{ip:ip}):"",function(){
     postCmds(cmds).then(function(){
@@ -2140,7 +2159,7 @@ tabHooks.system={enter:sysLoad};
 
 var CONF_OVERWRITE=[
   /^ip\b/,/^gw\b/,/^netmask\b/,/^hostname\b/,
-  /^syslog\s+ip\b/,/^syslog\s+port\b/,/^passwd\b/,/^session\b/,
+  /^syslog\s+ip\b/,/^syslog\s+port\b/,/^dns\s+server\b/,/^passwd\b/,/^session\b/,
   /^vlan\s+\d{1,4}\s+mgmt$/,/^vlan\s+\d{1,4}(?!\s+mgmt\b)/,
   /^pvid\s+\d{1,2}\b/,
   /^port\s+\d{1,2}(?!\s+name\b)/,/^port\s+\d{1,2}\s+name\b/,
@@ -2260,10 +2279,26 @@ $("saveBtn").addEventListener("click",function(){
   });
 });
 
-var fwBuf=null;
+var fwBuf=null,fwOther=false;
+// Every image carries its machine name as a NUL-terminated string, the same
+// one the running switch reports as hw_ver: an image without it was built
+// for another board (SFP, LED and button pins differ between machines).
+function fwForThisSwitch(u){
+  var name=S.info.hw_ver;
+  if(!name)return true;
+  var n=[];
+  for(var i=0;i<name.length;i++)n.push(name.charCodeAt(i)&0xff);
+  n.push(0);
+  outer:for(var p=0;p<=u.length-n.length;p++){
+    for(var k=0;k<n.length;k++)if(u[p+k]!==n[k])continue outer;
+    return true;
+  }
+  return false;
+}
 $("fwfile").addEventListener("change",function(){
   var f=this.files[0];
   fwBuf=null;
+  fwOther=false;
   $("fwup").disabled=true;
   $("fwinfo").textContent="";
   if(!f)return;
@@ -2286,13 +2321,15 @@ $("fwfile").addEventListener("change",function(){
       return;
     }
     fwBuf=f;
-    info.innerHTML='<span style="color:var(--ok)">\u2713 '+esc(t("fw_valid"))+"</span>";
+    fwOther=!fwForThisSwitch(u);
+    info.innerHTML='<span style="color:var(--ok)">\u2713 '+esc(t("fw_valid"))+"</span>"+
+      (fwOther?'<br><span style="color:var(--warn)">\u26a0 '+esc(t("fw_other",{m:S.info.hw_ver}))+"</span>":"");
     $("fwup").disabled=false;
   });
 });
 $("fwup").addEventListener("click",function(){
   if(!fwBuf)return;
-  confirmModal(t("fw_q"),t("fw_d"),function(){
+  confirmModal(t("fw_q"),(fwOther?t("fw_other",{m:S.info.hw_ver})+" ":"")+t("fw_d"),function(){
     var form=new FormData();
     form.append("uploadedfile",fwBuf,fwBuf.name);
     var xhr=new XMLHttpRequest();
