@@ -11,6 +11,7 @@
 #include "rtl837x_pins.h"
 #include "rtl837x_phy.h"
 #include "rtl837x_port.h"
+#include "rtl837x_trap.h"
 #include "rtl837x_stp.h"
 #include "rtl837x_igmp.h"
 #include "rtl837x_leds.h"
@@ -27,6 +28,7 @@
 #include "phy.h"
 #include "syslog.h"
 #include "dns.h"
+#include "ntp.h"
 #include "httpd/page_impl.h"
 #include "boot.h"
 #include "sfp.h"
@@ -1769,6 +1771,7 @@ void main(void)
 
 	syslog_init();
 	dns_init();
+	ntp_init();
 
 #ifdef DEBUG
 	// This register seems to work on the RTL8373 only if also the SDS
@@ -1791,6 +1794,7 @@ void main(void)
 	stp_defaults();		/* 802.1D/w default config before any "stp ..." replay */
 	nic_setup();
 	REG_SET(RTL837X_NIC_INT_MSK, NIC_INT_RXIE);
+	trap_init();
 	vlan_setup();
 	port_l2_setup();
 	igmp_setup();

@@ -90,7 +90,14 @@ sy_ip_err:"Invalid IP / netmask / gateway",sy_host_err:"Hostname: 1-23 printable
 sy_net_q:"Apply network settings?",sy_net_d:"The management IP changes to {ip}: this page will need to be reopened there.",
 sy_ip_changed:"IP changed, reconnect at http://{ip}/",sy_dhcp_q:"Switch to DHCP?",
 sy_dhcp_d:"The switch requests an address via DHCP. You must find its new IP to reconnect.",
-sy_sysip_err:"Invalid syslog server IP",sy_dns1:"DNS server",sy_dns2:"Second DNS",sy_dns_err:"Invalid DNS server IP",sy_dns_dhcp:"from DHCP: {ip}",sy_sysport_err:"Syslog port must be 1-65535",
+sy_sysip_err:"Invalid syslog server IP",sy_dns1:"DNS server",sy_dns2:"Second DNS",sy_dns_err:"Invalid DNS server IP",sy_dns_dhcp:"from DHCP: {ip}",
+sy_time:"Time",sy_ntp:"NTP",sy_ntpsrv:"NTP server",sy_ntpsrv_p:"host name or IPv4 address",sy_ntpint:"Poll interval [min]",
+sy_tz:"Time zone",sy_dst:"Daylight saving",sy_dst_eu:"Europe",
+sy_dst_us:"United States",sy_now:"Local time",
+sy_sync:"Last synchronisation",sy_ntpaddr:"Server address",sy_nosync:"not synchronised",sy_waiting:"waiting for the server",
+sy_ago:"{n} min ago",sy_ntp_err:"Enter the host name or IPv4 address of the NTP server",sy_ntpint_err:"Poll interval must be 1-1440",
+sy_time_note:"The switch has no battery backed clock: the time is lost at every restart and set again from the NTP server once the network is up. Save to flash to keep the settings.",
+sy_sysport_err:"Syslog port must be 1-65535",
 sy_pw_len:"Password: 1-20 characters",sy_pw_space:"Password cannot contain spaces",sy_pw_match:"Passwords do not match",
 sy_pw_q:"Change admin password?",sy_pw_d:"Takes effect immediately for new logins. Save to flash to persist.",
 sy_reboot_q:"Reboot the switch?",sy_reboot_d:"There are UNSAVED changes and they will be lost. Save to flash first if you want to keep them.",
@@ -521,6 +528,9 @@ l2_learned:"appris",l2_loading:"chargement...",l2_failed:"chargement non réussi
 l2_del_t:"Supprimer l'entrée",l2_flush_q:"Effacer toutes les entrées MAC apprises?",
 m_title:"Duplication de ports",m_active:"actif",m_monitor:"Port de supervision",m_mirror:"Mirroir",m_both:"RX&TX",
 m_note:"RX&TX = duplique RX et TX du port vers le port de supervision.",m_none:"Selectionnez au moins un port à dupliquer",
+iso_title:"Isolation des ports",iso_from:"Du port",iso_to:"Au port",iso_all:"Tout autoriser",
+iso_intro:"Une trame réseau accédant à un port ne peut repartir que par le port selectionné dans cette ligne. L'isolement est prioritaire sur la retransmission, un port non non coché n'est pas accessible directement, quoi que dit la table d'adresses.",
+iso_legend:"La cellule du port lui-même est toujours autorisée. Une port de couleur rouge indique que celui-ci n'est que partiellement ouvert.",
 lag_hash:"Hachage:",lag_note:"Un groupe d'agrégation de Lien (LAG) nécessite au moins un membre pour être sauvegardé dans la configuration de démarrage; Utiliser un groupe vide fait office de remise à zero.",
 lag_clear_q:"Effacer l'agrégation {n}?",lag_clear_d:"Tous les ports membres vont redevenir normaux.",
 e_title:"Gestion énergétique des ports",e_adv:"Capacités",e_lp:"Capacité du partenaire",e_active:"Actif",e_enable:"Basse consommation",
@@ -561,6 +571,7 @@ fw_intro:"Charge une image RTLPlayground (512 KiB .bin). L'image est envoée en 
 fw_upload:"Charger",fw_checking:"{f}: {n} bytes. Vérification...",fw_size_err:"la taille est {n} alors que nous attendons 524288 (512 KiB)",
 fw_magic_err:"Entête de banque de donnée manquant / contrôle LJMP: ce n'est pas une image de firmware",fw_crc_err:"Somme de contrôle erronée: image corrompue",
 fw_valid:"Image RTLPlayground valide (taille, LJMP et somme de contrôle OK)",fw_q:"Chargement du firmware?",
+fw_other:"Cette image n'a pas été prévue pour ce commutateur({m}): La puce, les LED et les boouton peuvent être différents. Poursuivez seulement si vous êtes sûrs de vous.",
 fw_d:"Si la somme de contrôle est correcte, le commutateur va redémarrer tout seul et charger la nouvelle image lors du démarrage (la configuration est préservée). Ne pas éteindre l'appareil avant que les voyants ne s'éteignent.",
 fw_finishing:"Fin d'écriture en mémoire flash... {s} s",fw_uploading:"Chargement... {p}% / {s} s",
 fw_verified:"Somme de contrôle vérifiée, le commutateur redémarre...",
@@ -785,6 +796,8 @@ var CONF_CMDS=[
   /^syslog\s+(on|off)$/,/^syslog\s+ip\s+(\d{1,3}\.){3}\d{1,3}$/,/^syslog\s+port\s+\d{1,5}$/,
   /^session\s+\d{1,5}$/,
   /^dns\s+server\s+(\d{1,3}\.){3}\d{1,3}(\s+(\d{1,3}\.){3}\d{1,3})?$/,
+  /^ntp\s+(on|off)$/,/^ntp\s+server\s+[A-Za-z0-9.-]{1,47}$/,/^ntp\s+interval\s+\d{1,4}$/,
+  /^ntp\s+timezone\s+[+-]?\d{1,2}(:\d{2})?$/,/^ntp\s+dst\s+(off|eu|us)$/,
   /^passwd\s+\S+$/,/^hostname\s+\S{1,23}$/,
   /^vlan\s+\d{1,4}\s+d$/,/^vlan\s+\d{1,4}\s+mgmt$/,
   /^vlan\s+\d{1,4}(\s+[a-zA-Z]\w*)?(\s+\d{1,2}t?)+$/,
@@ -2155,11 +2168,58 @@ $("cfgreload").addEventListener("click",cfgReload);
 $("cfgwrite").addEventListener("click",function(){
   writeConfig($("cfgedit").value,t("cw_title"));
 });
-tabHooks.system={enter:sysLoad};
+var ntpBase=null,ntpTimer=null;
+function tzText(m){var a=Math.abs(m);return(m<0?"-":"+")+String(Math.floor(a/60)).padStart(2,"0")+":"+String(a%60).padStart(2,"0")}
+function ntpTick(){
+  if(!ntpBase)return;
+  var d=new Date(ntpBase.ms+(Date.now()-ntpBase.at));
+  function p(n){return String(n).padStart(2,"0")}
+  $("sy-sync").textContent=t("sy_ago",{n:ntpBase.sync+Math.floor((Date.now()-ntpBase.at)/60000)});
+  $("sy-now").textContent=d.getUTCFullYear()+"-"+p(d.getUTCMonth()+1)+"-"+p(d.getUTCDate())+" "
+    +p(d.getUTCHours())+":"+p(d.getUTCMinutes())+":"+p(d.getUTCSeconds())+" UTC"+ntpBase.tz;
+}
+function ntpLoad(){
+  return api("/cmd",{method:"POST",body:"ntp"}).then(function(r){
+    var m=r.body.match(/NTP (on|off), server (\S*), address ([\d.]+), interval (\d+) min, timezone ([+-]\d\d:\d\d), dst (\w+)/);
+    if(!m)return;
+    var x=r.body.match(/Time (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC([+-]\d\d:\d\d)( DST)?, synchronised (\d+) min ago/);
+    $("sy-ntpaddr").textContent=m[3]==="0.0.0.0"?"-":m[3];
+    if(x){
+      ntpBase={at:Date.now(),ms:Date.UTC(+x[1],+x[2]-1,+x[3],+x[4],+x[5],+x[6]),tz:x[7]+(x[8]?" DST":""),sync:+x[9]};
+      ntpTick();
+    }else{
+      ntpBase=null;
+      $("sy-now").textContent=t("sy_nosync");
+      $("sy-sync").textContent=m[1]==="on"?t("sy_waiting"):"-";
+    }
+    if($("sy-ntpcard").dataset.dirty)return;
+    $("sy-ntp").checked=m[1]==="on";$("sy-ntpsrv").value=m[2];$("sy-ntpint").value=m[4];
+    $("sy-tz").value=m[5];$("sy-dst").value=m[6];
+  }).catch(function(){});
+}
+[-720,-660,-600,-570,-540,-480,-420,-360,-300,-240,-210,-180,-120,-60,0,60,120,180,210,240,270,300,330,345,
+ 360,390,420,480,525,540,570,600,630,660,720,765,780,840].forEach(function(z){
+  $("sy-tz").appendChild(h("option",{value:tzText(z),text:"UTC"+tzText(z)}));
+});
+["change","input"].forEach(function(ev){$("sy-ntpcard").addEventListener(ev,function(){this.dataset.dirty="1"})});
+$("sy-ntpapply").addEventListener("click",function(){
+  var srv=$("sy-ntpsrv").value.trim(),iv=$("sy-ntpint").value.trim();
+  if(!/^[A-Za-z0-9.-]{1,47}$/.test(srv)){toast(t("sy_ntp_err"),"err");return;}
+  if(!(+iv>=1&&+iv<=1440)){toast(t("sy_ntpint_err"),"err");return;}
+  delete $("sy-ntpcard").dataset.dirty;
+  postCmds(["ntp server "+srv,"ntp interval "+iv,"ntp timezone "+$("sy-tz").value,"ntp dst "+$("sy-dst").value,
+    "ntp "+($("sy-ntp").checked?"on":"off")]).then(ntpLoad).catch(function(){});
+});
+$("sy-ntprefresh").addEventListener("click",ntpLoad);
+tabHooks.system={
+  enter:function(){sysLoad();ntpLoad();clearInterval(ntpTimer);ntpTimer=setInterval(ntpTick,1000)},
+  leave:function(){clearInterval(ntpTimer)},
+};
 
 var CONF_OVERWRITE=[
   /^ip\b/,/^gw\b/,/^netmask\b/,/^hostname\b/,
   /^syslog\s+ip\b/,/^syslog\s+port\b/,/^dns\s+server\b/,/^passwd\b/,/^session\b/,
+  /^ntp\s+server\b/,/^ntp\s+interval\b/,/^ntp\s+timezone\b/,/^ntp\s+dst\b/,
   /^vlan\s+\d{1,4}\s+mgmt$/,/^vlan\s+\d{1,4}(?!\s+mgmt\b)/,
   /^pvid\s+\d{1,2}\b/,
   /^port\s+\d{1,2}(?!\s+name\b)/,/^port\s+\d{1,2}\s+name\b/,
@@ -2169,7 +2229,7 @@ var CONF_OVERWRITE=[
   /^stp\s+(port\s+\d{1,2}|lag\s+[1-4])\s+(edge|cost|prio|guard|filter|p2p)\b/,
   /^igmp\b/,/^mtu\s+\d{1,2}\b/,/^storm\s+\d{1,2}\s+(bcast|mcast|ucast|umcast)\b/,
 ];
-var CONF_TOGGLE=[/^(syslog)\s+(on|off)$/,/^(stp)\s+(on|off)$/,/^(stp\s+(port\s+\d{1,2}|lag\s+[1-4]))\s+(on|off)$/];
+var CONF_TOGGLE=[/^(syslog)\s+(on|off)$/,/^(ntp)\s+(on|off)$/,/^(stp)\s+(on|off)$/,/^(stp\s+(port\s+\d{1,2}|lag\s+[1-4]))\s+(on|off)$/];
 function mergeConf(base,texts){
   var conf=base.slice();
   function drop(rx){conf=conf.filter(function(c){return!rx.test(c)})}

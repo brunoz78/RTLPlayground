@@ -71,6 +71,8 @@ SRCS = \
 	sfp.c \
 	dns.c \
 	dns_cli.c \
+	ntp.c \
+	ntp_cli.c \
 	syslog.c \
 	udp_apps.c
 
@@ -87,7 +89,8 @@ SRCS += \
 	rtl837x_port.c \
 	rtl837x_stp.c \
 	rtl837x_lldp.c \
-	rtl837x_storm.c
+	rtl837x_storm.c \
+	rtl837x_trap.c
 SRCS += \
 	httpd/httpd.c \
 	httpd/page_impl.c

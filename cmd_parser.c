@@ -22,6 +22,7 @@
 #include "dhcp.h"
 #include "syslog.h"
 #include "dns.h"
+#include "ntp.h"
 #include "uip/uip.h"
 #include "version.h"
 
@@ -845,9 +846,14 @@ void parse_mirror(void)
 	if (cmd_words_len < 2)
 		goto err;
 
+	// The first argument is the mirroring (monitor) port
+	uint8_t ret = cmd_parse_port(cmd_words_b[1]);
+	if (ret == 0)
+		goto err;
+	mirroring_port = atoi_results_u8;
+
 	uint8_t w = 2;
 	uint8_t port;
-	uint8_t ret;
 	while (w < cmd_words_len) {
 		uint8_t idx = cmd_words_b[w++];
 		ret = cmd_parse_port(idx);
@@ -856,10 +862,6 @@ void parse_mirror(void)
 
 		idx += ret;
 		port = atoi_results_u8;
-
-		// Use the first port argument as mirroring_port
-		if (w == 2)
-			mirroring_port = port;
 
 		ret = cmd_buffer[idx];
 		uint16_t pmask = ((uint16_t)1) << port;
@@ -1869,6 +1871,8 @@ void cmd_parser(void) __banked
 			parse_syslog();
 		} else if (cmd_compare(0, "dns")) {
 			dns_parse();
+		} else if (cmd_compare(0, "ntp") || cmd_compare(0, "time")) {
+			ntp_parse();
 		} else if (cmd_compare(0, "ip")) {
 			if (cmd_compare(1, "dhcp")) {
 				dhcp_start();
@@ -2019,11 +2023,6 @@ void cmd_parser(void) __banked
 			parse_storm();
 		} else if (cmd_compare(0, "version")) {
 			print_sw_version();
-		} else if (cmd_compare(0, "time")) {
-			print_string("  Tick counter: "); print_long(ticks); print_string("   Sec Counter: ");
-			reg_read_m(RTL837X_REG_SEC_COUNTER);
-			print_sfr_data();
-			write_char('\n');
 		} else if (cmd_compare(0, "history")) {
 			__xdata uint16_t p = (cmd_history_ptr + 1) & CMD_HISTORY_MASK;
 			__xdata uint8_t found_begin = 0;
