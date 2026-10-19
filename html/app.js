@@ -124,6 +124,8 @@ fw_d:"On a good checksum the switch resets itself and applies the image during b
 fw_finishing:"finishing flash write... {s} s",fw_uploading:"uploading... {p}% / {s} s",
 fw_verified:"checksum verified, the switch is rebooting...",
 fw_rejected:"the switch rejected the image (bad checksum), nothing was applied",
+fw_noauth:"not uploaded: this browser is no longer logged in. Log in again, then upload again; nothing was applied",
+fw_refused:"the switch refused the upload, nothing was applied",
 fw_lost:"upload failed: connection lost mid-transfer",
 fw_noreboot:"no reboot detected: the image was most likely rejected. If updating from old firmware, verify the version in the sidebar after logging in again.",
 fw_applied:"update applied",fw_done_t:"Firmware updated",
@@ -702,6 +704,8 @@ fw_d:"Ist die Prüfsumme korrekt, startet der Switch neu und übernimmt das Imag
 fw_finishing:"Flash wird fertig beschrieben... {s} s",fw_uploading:"wird hochgeladen... {p}% / {s} s",
 fw_verified:"Prüfsumme bestätigt, der Switch startet neu...",
 fw_rejected:"der Switch hat das Image abgelehnt (falsche Prüfsumme), es wurde nichts übernommen",
+fw_noauth:"nicht hochgeladen: dieser Browser ist nicht mehr angemeldet. Erneut anmelden und nochmals hochladen; es wurde nichts übernommen",
+fw_refused:"der Switch hat das Hochladen abgelehnt, es wurde nichts übernommen",
 fw_lost:"Hochladen fehlgeschlagen: Verbindung während der Übertragung abgebrochen",
 fw_noreboot:"kein Neustart erkannt: Das Image wurde sehr wahrscheinlich abgelehnt. Bei einem Update von alter Firmware nach dem erneuten Anmelden die Version in der Seitenleiste prüfen.",
 fw_applied:"Update übernommen",fw_done_t:"Firmware aktualisiert",
@@ -787,7 +791,7 @@ function api(path,opts){
       if(ctl)opts.signal=ctl.signal;
       var to=setTimeout(function(){if(ctl)ctl.abort()},10000);
       return fetch(path,opts).then(function(r){
-        if(r.status===401){clearTimeout(to);location.href="/login.html";throw new Error("auth");}
+        if(r.status===401){clearTimeout(to);location.href="/login.html#ended";throw new Error("auth");}
         return r.text().then(function(body){
           clearTimeout(to);
           resolve({ok:r.ok,status:r.status,body:body});
@@ -2474,7 +2478,9 @@ $("fwup").addEventListener("click",function(){
         fwSettle(st,true);
       }else{
         var why=(xhr.responseText||"").trim().split("\n")[0];
-        st.textContent="\u2715 "+t("fw_rejected")+" (HTTP "+xhr.status+(why?": "+why:"")+")";
+        // Say why: a 401 is a lost login, not a bad image
+        var msg=xhr.status===401?t("fw_noauth"):/^NO: checksum/.test(why)?t("fw_rejected"):t("fw_refused");
+        st.textContent="\u2715 "+msg+" (HTTP "+xhr.status+(why?": "+why:"")+")";
         $("fwup").disabled=false;
       }
     })};
@@ -2533,6 +2539,7 @@ window.addEventListener("hashchange",function(){
 (function(){
   var id=location.hash.slice(1);
   if(!TABS.some(function(tb){return tb.id===id}))id="dash";
+  window.appReady=true;	/* index.html's loading check */
   pollInfo().catch(function(){});
   getText("/cmd_log").then(function(x){
     x=x.replace(/\0[\s\S]*$/,"").trim();
