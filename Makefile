@@ -106,6 +106,7 @@ SRCS = \
 	ntp.c \
 	ntp_cli.c \
 	syslog.c \
+	cfgpass.c \
 	udp_apps.c
 
 # RTL837x
