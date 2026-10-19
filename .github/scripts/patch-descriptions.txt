@@ -4,3 +4,5 @@ multi-session	vier gleichzeitige Anmeldungen
 rx-wedge-lite	Fix gegen das Hängenbleiben der Verwaltung (Weboberfläche, Ping), ohne /diag.json
 info-uptime	Betriebszeit in der Übersicht und in /information.json
 config-backup	Konfiguration als Datei sichern und wiederherstellen (Systemseite)
+cfg-nopass	Admin-Passwort erscheint nicht mehr in Startkonfiguration, Sicherung und Befehlsprotokoll
+web-reasons	klare Fehlergründe beim Firmware-Upload und bei beendeter Sitzung
