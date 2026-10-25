@@ -6,4 +6,3 @@ info-uptime	Betriebszeit in der Übersicht und in /information.json
 config-backup	Konfiguration als Datei sichern und wiederherstellen (Systemseite)
 cfg-nopass	Admin-Passwort erscheint nicht mehr in Startkonfiguration, Sicherung und Befehlsprotokoll
 web-reasons	klare Fehlergründe beim Firmware-Upload und bei beendeter Sitzung
-sidebar-fix	Menü links und Kopfzeile bleiben beim Scrollen stehen (aus PR #651 von Kamikaze94)
