@@ -29,7 +29,7 @@ jobs:
       - name: Abhängigkeiten installieren
         run: |
           apt-get update
-          apt-get install -y make gcc sdcc xxd python-is-python3 libjson-c-dev zlib1g-dev git
+          apt-get install -y make gcc g++ bison flex libboost-dev patch bzip2 curl ca-certificates xxd python-is-python3 libjson-c-dev zlib1g-dev git
 
       - uses: actions/checkout@v6
         with:
@@ -37,6 +37,14 @@ jobs:
 
       - name: Git im Container freigeben
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # Das Original baut seinen eigenen SDCC (sdcc/): beim ersten Mal einige Minuten,
+      # danach kommt der fertige Compiler aus dem Zwischenspeicher
+      - name: SDCC aus dem Zwischenspeicher holen
+        uses: actions/cache@v4
+        with:
+          path: toolchain
+          key: sdcc-${{ hashFiles('sdcc/*') }}
 
       - name: Images bauen
         env:
