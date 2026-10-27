@@ -5,4 +5,3 @@ info-uptime	Betriebszeit in der Übersicht und in /information.json
 config-backup	Konfiguration als Datei sichern und wiederherstellen (Systemseite)
 cfg-nopass	Admin-Passwort erscheint nicht mehr in Startkonfiguration, Sicherung und Befehlsprotokoll
 web-reasons	klare Fehlergründe beim Firmware-Upload und bei beendeter Sitzung
-de-vlan	deutsche Texte der überarbeiteten VLAN-Seite
