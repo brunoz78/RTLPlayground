@@ -4,11 +4,21 @@ DEFAULT_CONFIG_LOCATION = 454656
 CONFIG_LOCATION = 458752
 HTML_LOCATION = 262144
 
-SDCC_PREFIX = toolchain/sdcc-$(shell cat sdcc/* | cksum | cut -d' ' -f1)
+SDCC_TOOLCHAIN = sdcc-$(shell cat sdcc/* | cksum | cut -d' ' -f1)
+SDCC_PREFIX = toolchain/$(SDCC_TOOLCHAIN)
 ifeq ($(origin CC),default)
 SDCC = $(SDCC_PREFIX)/bin/sdcc
 CC = $(SDCC)
 ASM = $(SDCC_PREFIX)/bin/sdas8051
+SDCC_REV := $(shell git log -1 --format=%h -- sdcc 2>/dev/null)
+ifneq ($(SDCC_REV),)
+ifneq ($(shell git status --porcelain --untracked-files=no -- sdcc 2>/dev/null),)
+SDCC_REV := $(SDCC_REV)-dirty
+endif
+endif
+SDCC_BANNER = $(if $(SDCC_REV),sdcc/ at $(SDCC_REV),$(SDCC_TOOLCHAIN)) ($(words $(wildcard sdcc/*.patch)) patches)
+else
+SDCC_BANNER = system
 endif
 CC_FLAGS = -mmcs51 -I. -Imachine -Ihttpd -Iuip
 ASM ?= sdas8051
@@ -105,6 +115,7 @@ SRCS = \
 	sfp.c \
 	dns.c \
 	dns_cli.c \
+	sessions.c \
 	ntp.c \
 	ntp_cli.c \
 	syslog.c \
@@ -148,19 +159,30 @@ HTML := $(shell find html -name '*.js' -or -name '*.html' -or -name '*.svg' -or 
 # The raw html/ sources stay untouched for development; the minified
 # copy is a build artifact under output/.
 HTML_MIN := $(BUILDDIR)/html_min
+HTML_MIN_LIST := $(BUILDDIR)/html_min.list
+HTML_MIN_STAMP := $(BUILDDIR)/html_min.stamp
 .PHONY: html_min
-html_min: $(HTML)
+html_min: $(HTML_MIN_STAMP)
+
+$(HTML_MIN_LIST): FORCE
+	@mkdir -p $(BUILDDIR)
+	@echo $(sort $(HTML)) > $@.tmp
+	@cmp -s $@.tmp $@ && rm -f $@.tmp || mv $@.tmp $@
+
+$(HTML_MIN_STAMP): $(HTML) $(HTML_MIN_LIST) tools/minify.py $(if $(wildcard $(HTML_MIN)),,FORCE)
 	rm -rf $(HTML_MIN)
 	mkdir -p $(HTML_MIN)
 	@for f in $(HTML); do python3 tools/minify.py $$f $(HTML_MIN)/$$(basename $$f) || exit 1; done
+	@touch $@
 
-html_data.c html_data.h &: $(HTML) | tools html_min
+html_data.c html_data.h &: $(HTML_MIN_STAMP) | tools
 	tools/$(BUILDDIR)/fileadder -a $(HTML_LOCATION) -s $(IMAGESIZE) -b BANK1 -z -d $(HTML_MIN) -p html_data
 
 $(VERSION_HEADER): FORCE
 	@printf '%s\n' "#ifndef VERSION_H" "#define VERSION_H" \
 		"#define VERSION_SW \"$(VERSION_EXTENSION)\"" \
 		"#define BUILD_DATE \"$(BUILD_DATE)\"" \
+		"#define SDCC_TOOLCHAIN \"$(SDCC_BANNER)\"" \
 		"#endif" > $(VERSION_HEADER).tmp
 	@cmp -s $(VERSION_HEADER).tmp $(VERSION_HEADER) \
 		&& rm -f $(VERSION_HEADER).tmp \
@@ -172,11 +194,11 @@ $(SUBDIRS):
 	$(MAKE) -C $@ BUILDDIR=$(BUILDDIR)
 
 clean: $(SUBDIRSCLEAN)
-	-rm -f html_data.c html_data.h $(VERSION_HEADER)
+	-rm -f html_data.c html_data.h $(VERSION_HEADER) $(HTML_MIN_LIST) $(HTML_MIN_STAMP)
 	-if [ -d $(BUILDDIR) ]; then find $(BUILDDIR) -type f ! -name "*.bin" -delete; fi
 
 distclean: $(SUBDIRSCLEAN)
-	-rm -f html_data.c html_data.h $(VERSION_HEADER)
+	-rm -f html_data.c html_data.h $(VERSION_HEADER) $(HTML_MIN_LIST) $(HTML_MIN_STAMP)
 	-rm -rf $(BUILDDIR)
 	-rm -rf toolchain
 
@@ -223,12 +245,14 @@ $(BUILDDIR)/rtlplayground-$(FILENAME_EXTENSION).bin: $(BUILDDIR)/rtlplayground.i
 .PHONY: clean distclean all $(SUBDIRS) $(SUBDIRSCLEAN) create_build_dir
 
 # Every machine/ definition is compiled, so a machine added to machine/ is
-# covered without registering it anywhere. The _init.c files are excluded here:
-# they are the boot hooks, compiled separately below (the board's own if it
-# exists, otherwise default_machine_init.c). The machine-specific defines are
-# filtered out of $(CC_FLAGS) and supplied per iteration instead, so this also
-# works as "make machine_check MACHINE=...".
-MACHINE_DEFS := $(sort $(patsubst machine/%.c,%,$(filter-out machine/%_init.c,$(wildcard machine/*.c))))
+# covered without registering it anywhere. A board only counts once both its
+# <machine>.c and its <machine>.h are present: the header is what the rest of
+# the build includes, so a .c without one is an incomplete board. The _init.c
+# files are excluded here: they are the boot hooks, compiled separately below
+# (the board's own if it exists, otherwise default_machine_init.c). The
+# machine-specific defines are filtered out of $(CC_FLAGS) and supplied per
+# iteration instead, so this also works as "make machine_check MACHINE=...".
+MACHINE_DEFS := $(sort $(filter $(patsubst machine/%.h,%,$(wildcard machine/*.h)),$(patsubst machine/%.c,%,$(filter-out machine/%_init.c,$(wildcard machine/*.c)))))
 MACHINE_LESS_CC_FLAGS = $(filter-out -DMACHINE_%,$(CC_FLAGS))
 
 .PHONY: machine_check
