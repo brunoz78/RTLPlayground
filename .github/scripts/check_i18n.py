@@ -9,11 +9,13 @@ import sys
 
 def blocks(path):
     src = open(path, encoding="utf-8").read().replace("\r\n", "\n").split("var rtlLang")[0]
-    return dict(re.findall(r"\n(\w\w):\{\n(.*?)\n\}", src, re.S))
+    # compact ("de:{" at the start of a line) or formatted ("    de: {") source
+    found = re.findall(r"\n( *)(\w\w): ?\{\n(.*?)\n\1\}", src, re.S)
+    return {lang: body for _, lang, body in found}
 
 
 def keys(block):
-    return re.findall(r'(\w+):"(?:[^"\\]|\\.)*"', block)
+    return re.findall(r'(\w+): ?"(?:[^"\\]|\\.)*"', block)
 
 
 def main():

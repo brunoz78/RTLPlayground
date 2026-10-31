@@ -12,7 +12,7 @@ on:
       machines:
         description: Geräte (Build-Ziele, mit Leerzeichen getrennt)
         type: string
-        default: SWTGW218AS LIANGUO_ZX_SWTGW215AS KP_9000_9XHML_X_V3_1 KP_9000_9XHML_X_V3_2
+        default: MOKERLINK_ZX_SWTGW218AS LIANGUO_ZX_SWTGW215AS KEEPLINK_KP_9000_9XHML_X_V3_1 KEEPLINK_KP_9000_9XHML_X_V3_2
 
 permissions:
   contents: write
@@ -118,10 +118,10 @@ jobs:
           for f in dist/rtlplayground-oem-installer-*.bin; do
             m=${f#dist/rtlplayground-oem-installer-}; m=${m%.bin}
             case "$m" in
-              SWTGW218AS) name="ZX-SWTGW218AS" ;;
+              MOKERLINK_ZX_SWTGW218AS) name="ZX-SWTGW218AS" ;;
               LIANGUO_ZX_SWTGW215AS) name="ZX-SWTGW215AS" ;;
-              KP_9000_9XHML_X_V3_1) name="KP-9000 V3.1" ;;
-              KP_9000_9XHML_X_V3_2) name="KP-9000 V3.2" ;;
+              KEEPLINK_KP_9000_9XHML_X_V3_1) name="KP-9000 V3.1" ;;
+              KEEPLINK_KP_9000_9XHML_X_V3_2) name="KP-9000 V3.2" ;;
               *) name="$m" ;;
             esac
             # Anzeigename in der Dateiliste: Gerät · Version · Datum
