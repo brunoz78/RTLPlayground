@@ -1938,6 +1938,25 @@ var LANG = {
         lldp_title: "Dienststatus",
         lldp_portname: "Name",
         lldp_enable: "Pakete senden",
+        stp_pcs: "Pfadkosten-Format",
+        stp_pcs_long: "Lang (32 Bit)",
+        stp_pcs_short: "Kurz (16 Bit)",
+        stp_bh: "BPDUs bei ausgeschaltetem STP",
+        stp_bh_flood: "Weiterleiten",
+        stp_bh_filter: "Verwerfen",
+        stp_r4: "Backup",
+        stp_times: "Max. Alter / Forward Delay",
+        stp_proto: "Protokoll",
+        stp_nolink: "kein Link",
+        stp_lasttc: "zuletzt",
+        stp_mcheck: "Prüfen",
+        stp_mcheck_t: "Erneut RST-BPDUs senden, um zu prüfen, ob der Nachbar noch 802.1D braucht",
+        stp_cnt: "Zähler",
+        stp_crx: "BPDUs empfangen",
+        stp_ctx: "BPDUs gesendet",
+        stp_ctrx: "TC empfangen",
+        stp_cttx: "TC gesendet",
+        stp_cage: "Letzte BPDU [s]",
         st_title: "Port-Statistik",
         st_h: "Summen seit dem Start",
         st_txg: "TX gut",
@@ -2196,6 +2215,7 @@ var S = {
     sfpSlot: [],
     info: {},
     detail: null,
+    tip: null,
     dirty: false,
     prev: null,
     prevT: 0,
@@ -2363,7 +2383,7 @@ var CONF_CMDS = [
     /^stp\s+(port\s+\d+|lag\s+[1-4])\s+prio\s+\d+$/,
     /^stp\s+(port\s+\d+|lag\s+[1-4])\s+guard\s+(none|bpdu|root)$/,
     /^stp\s+(port\s+\d+|lag\s+[1-4])\s+filter\s+(on|off)$/,
-    /^stp\s+(port\s+\d=|lag\s+[1-4])\s+p2p\s+(auto|on|off)$/,
+    /^stp\s+(port\s+\d+|lag\s+[1-4])\s+p2p\s+(auto|on|off)$/,
     /^igmp\s+(on|off)$/,
     /^mtu\s+\d+\s+\d+$/,
     /^lldp\s+(on|off)$/,
@@ -2435,6 +2455,7 @@ function toast(msg, cls) {
 
 function modal(title, bodyEl, buttons) {
     S.detail = null;
+    portTip(); // Hide if open
     $("mtitle").textContent = title;
     var b = $("mbody");
     b.innerHTML = "";
@@ -2669,6 +2690,26 @@ function portLabel(p) {
     return p.name ? p.portNum + " " + p.name : String(p.portNum)
 }
 
+function portTip(i) {
+    S.tip = (typeof i === "number" && S.detail == null && S.ports[i]) ? i : null;
+    var tip = $("ptip");
+    tip.classList.toggle("show", S.tip != null);
+    if (S.tip == null) return;
+    tip.innerHTML = "";
+    tip.appendChild(detailTable(S.ports[S.tip]));
+    var r = $("pp" + S.tip).getBoundingClientRect();
+    var left = Math.max(8, Math.min(innerWidth - tip.offsetWidth - 8, r.left + (r.width - tip.offsetWidth) / 2));
+    tip.style.top = (r.bottom + 8) + "px";
+    tip.style.left = left + "px";
+    tip.style.setProperty("--ax", (r.left + r.width / 2 - left) + "px");
+}
+["scroll", "resize"].forEach(function(ev) {
+    addEventListener(ev, portTip, {
+        passive: true,
+        capture: true
+    })
+});
+
 function buildStrip() {
     var st = $("strip");
     st.innerHTML = "";
@@ -2679,7 +2720,12 @@ function buildStrip() {
             id: "pp" + i,
             onclick: function() {
                 portDetail(i)
-            }
+            },
+            onpointerenter: function(e) {
+                // Don't momentarily flash the modal when tapping via touchscreen
+                if (e.pointerType !== "touch") portTip(i)
+            },
+            onpointerleave: portTip
         }, [
             h("span", {
                 class: "pn",
@@ -2708,10 +2754,8 @@ function updateStrip() {
         el.classList.toggle("up", !!up);
         if (up) el.style.setProperty("--pc", "var(" + (LINKC[p.link] || "--s1000") + ")");
         lb.textContent = !p.enabled ? t("c_off") : (p.link > 0 ? LINKS[p.link] : t("c_down"));
-        el.title = portRows(p).map(function(r) {
-            return r[0] + ": " + r[1]
-        }).join("\n");
     });
+    if (S.tip != null) portTip(S.tip);
     if (S.detail != null) {
         var b = $("mbody");
         b.innerHTML = "";
@@ -3082,7 +3126,7 @@ function stpKey(pt) {
 }
 
 function stpName(pt) {
-    return pt.lag ? "LAG" + pt.lag : String(pt.p)
+    return pt.lag ? "LAG" + pt.lag + " (" + rangeStr(maskToPorts(parseInt(pt.mbr, 16))) + ")" : String(pt.p)
 }
 
 function stpDhms(x) {
@@ -3207,7 +3251,9 @@ function stpLoad() {
         s.ports.sort(function(a, b) {
             return (a.lag - b.lag) || (a.p - b.p)
         });
-        var sig = s.ports.map(stpKey).join();
+        var sig = s.ports.map(function(pt) {
+            return stpKey(pt) + (pt.mbr || "")
+        }).join();
         if (sig !== stpSig) {
             stpSig = sig;
             stpBuild(s.ports);

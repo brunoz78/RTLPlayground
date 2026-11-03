@@ -42,6 +42,9 @@ endif
 ifneq ($(HEALTH),)
 	CC_FLAGS += -DHEALTH
 endif
+ifneq ($(DEBUG),)
+	CC_FLAGS += -DDEBUG
+endif
 
 ifeq ($(CI),1)
 	CC_FLAGS += --Werror
@@ -96,6 +99,7 @@ create_build_dir: $(SDCC)
 	mkdir -p "$(BUILDDIR)/uip"
 	mkdir -p "$(BUILDDIR)/httpd"
 	mkdir -p "$(BUILDDIR)/machine"
+	mkdir -p "$(BUILDDIR)/crypto"
 
 # Every machine is a pair machine/<MACHINE>.c + machine/<MACHINE>.h. Selecting
 # them by name means no #if/#elif chain, so an unknown or empty $MACHINE is
@@ -131,7 +135,8 @@ SRCS = \
 	ntp.c \
 	ntp_cli.c \
 	syslog.c \
-	udp_apps.c
+	udp_apps.c \
+	crypto/chacha20.c
 
 # RTL837x
 SRCS += \
@@ -155,6 +160,7 @@ SRCS += \
 SRCS += \
 	httpd/httpd.c \
 	httpd/page_impl.c \
+	httpd/html_out.c \
 	httpd/page_stp.c
 SRCS += \
 	uip/timer.c \
@@ -248,7 +254,7 @@ $(BUILDDIR)/%.rel: %.asm $(CCFLAGS_STAMP) | create_build_dir
 	${ASM} ${AFLAGS} -o $@ $<
 #	mv -f $(addprefix $(basename $^), .lst .rel .sym) .
 
-$(BUILDDIR)/rtlplayground.ihx: $(OBJS) $(BUILDDIR)/crtbank.rel $(BUILDDIR)/crc16.rel
+$(BUILDDIR)/rtlplayground.ihx: $(OBJS) $(BUILDDIR)/crtbank.rel $(BUILDDIR)/crc16.rel $(BUILDDIR)/crypto/chacha_8051.rel
 	$(CC) $(CC_FLAGS) --xram-size 49151 -Wl-bHOME=0x00000 -Wl-bBANK1=0x14000 -Wl-bBANK2=0x24000 -Wl-bBANK3=0x34000 -Wl-bBANK4=0x44000 -Wl-r -o $@ $^
 
 $(BUILDDIR)/rtlplayground.img: $(BUILDDIR)/rtlplayground.ihx
