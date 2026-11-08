@@ -29,8 +29,9 @@ env:
   MACHINES: MOKERLINK_ZX_SWTGW218AS LIANGUO_ZX_SWTGW215AS KEEPLINK_KP_9000_9XHML_X_V3_1 KEEPLINK_KP_9000_9XHML_X_V3_2
   # Own pull requests to the original that are not merged yet. Their commits
   # are applied on top of the original until it contains them (git cherry
-  # compares the changes, so nothing has to be removed here after a merge).
-  PATCH_BRANCHES: rx-wedge-lite info-uptime config-backup cfg-nopass web-reasons
+  # compares the changes, so nothing has to be removed here after a merge,
+  # unless the original took the change in a different form).
+  PATCH_BRANCHES: rx-wedge-lite config-backup cfg-nopass web-reasons
 
 jobs:
   sync-main:
