@@ -114,9 +114,9 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Version im Image: Original-Commit, dahinter die Zahl der angewendeten
-          # Branches (p = Patches), z. B. v0.1.0-0e9c997-p2; welche es sind, steht
-          # in den Release-Notizen
+          # Version im Image: Version des Originals (Makefile), Build-Tag, Original-
+          # Commit, dahinter die Zahl der angewendeten Branches (p = Patches), z. B.
+          # v0.1.0-20261111-8fac378-p4; welche es sind, steht in den Release-Notizen
           : > applied.txt
           for br in $PATCH_BRANCHES; do
             if ! git fetch -q "https://github.com/$GITHUB_REPOSITORY.git" "$br"; then
@@ -133,11 +133,13 @@ jobs:
             echo "$br $tip" >> applied.txt
           done
           n=$(wc -l < applied.txt)
+          build="$(date -u +%Y%m%d)-${UP:0:7}"
           if [ "$n" -gt 0 ]; then
-            echo "BUILD_VERSION=${UP:0:7}-p$n" >> "$GITHUB_ENV"
+            echo "BUILD_VERSION=$build-p$n" >> "$GITHUB_ENV"
           else
-            echo "BUILD_VERSION=${UP:0:7}" >> "$GITHUB_ENV"
+            echo "BUILD_VERSION=$build" >> "$GITHUB_ENV"
           fi
+          echo "UP_VERSION=$(sed -n 's/^VERSION *= *//p' Makefile | head -1)" >> "$GITHUB_ENV"
           python _fork/.github/scripts/check_i18n.py html/app.js de > missing_de.txt
           echo "Fehlende deutsche Texte: $(wc -l < missing_de.txt)"
 
@@ -174,7 +176,7 @@ jobs:
               done < applied.txt
             fi
             echo
-            echo "Version in der Weboberfläche: \`v0.1.0-$BUILD_VERSION\` (Commit des Originals, danach \`p\` und die Zahl der zusätzlich enthaltenen Änderungen)."
+            echo "Version in der Weboberfläche: \`v$UP_VERSION-$BUILD_VERSION\` (Version des Originals, Build-Datum, Commit des Originals, danach \`p\` und die Zahl der zusätzlich enthaltenen Änderungen)."
             echo
             echo "## $title"
             echo
