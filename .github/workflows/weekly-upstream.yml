@@ -26,7 +26,7 @@ concurrency: weekly-upstream
 
 env:
   UPSTREAM: logicog/RTLPlayground
-  MACHINES: MOKERLINK_ZX_SWTGW218AS LIANGUO_ZX_SWTGW215AS KEEPLINK_KP_9000_9XHML_X_V3_1 KEEPLINK_KP_9000_9XHML_X_V3_2
+  MACHINES: MOKERLINK_ZX_SWTGW218AS LIANGUO_ZX_SWTGW215AS KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_1 KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_2
   # Own pull requests to the original that are not merged yet. Their commits
   # are applied on top of the original until it contains them (git cherry
   # compares the changes, so nothing has to be removed here after a merge,
