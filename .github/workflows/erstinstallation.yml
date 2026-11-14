@@ -37,7 +37,7 @@ jobs:
       - name: Abhängigkeiten installieren
         run: |
           apt-get update
-          apt-get install -y make gcc g++ bison flex libboost-dev patch bzip2 curl ca-certificates xxd python-is-python3 libjson-c-dev zlib1g-dev git
+          apt-get install -y make gcc g++ pkg-config bison flex libboost-dev patch bzip2 curl ca-certificates xxd python-is-python3 libjson-c-dev zlib1g-dev git
 
       - uses: actions/checkout@v6
         with:
