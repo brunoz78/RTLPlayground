@@ -73,9 +73,11 @@ jobs:
             git cherry-pick $picks
             n=$((n + 1))
           done
-          version="$up"
-          [ "$n" -gt 0 ] && version="$up-p$n"
+          # Gleiche Form wie beim wöchentlichen Build: Build-Datum vor dem Commit
+          version="$(date -u +%Y%m%d)-$up"
+          [ "$n" -gt 0 ] && version="$version-p$n"
           echo "BUILD_VERSION=$version" >> "$GITHUB_ENV"
+          echo "v$(sed -n 's/^VERSION *= *//p' Makefile | head -1)" > up_version.txt
 
       - name: Installer bauen
         run: |
@@ -87,7 +89,7 @@ jobs:
             make -C installer
             cp installer/output/rtlplayground_oem_upgrade.bin dist/rtlplayground-oem-installer-"$m".bin
           done
-          echo "$BUILD_VERSION" > dist/VERSION
+          echo "$(cat up_version.txt)-$BUILD_VERSION" > dist/VERSION
 
       - uses: actions/upload-artifact@v4
         with:
@@ -109,7 +111,7 @@ jobs:
 
       - name: Im Release „Erstinstallation“ ablegen
         run: |
-          version="v0.1.0-$(cat dist/VERSION)"
+          version="$(cat dist/VERSION)"
           day=$(date -u +%d.%m.%Y)
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --target main --latest=false \
