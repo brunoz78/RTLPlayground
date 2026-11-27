@@ -338,7 +338,7 @@ var LANG = {
         sy_ntpint_err: "Poll interval must be 1-1440",
         sy_time_note: "The switch has no battery backed clock: the time is lost at every restart and set again from the NTP server once the network is up. Save to flash to keep the settings.",
         sy_sysport_err: "Syslog port must be 1-65535",
-        sy_pw_len: "Password: 1-20 characters",
+        sy_pw_len: "Password: 1-20 bytes",
         sy_pw_space: "Password cannot contain spaces",
         sy_pw_match: "Passwords do not match",
         sy_pw_q: "Change admin password?",
@@ -647,7 +647,7 @@ var LANG = {
         sy_dhcp_d: "スイッチは DHCP でアドレスを要求します。再接続するには新しい IP を確認する必要があります。",
         sy_sysip_err: "syslog サーバー IP が無効です",
         sy_sysport_err: "syslog ポートは 1〜65535 の範囲で指定してください",
-        sy_pw_len: "パスワード: 1〜20 文字",
+        sy_pw_len: "パスワード: 1〜20 バイト",
         sy_pw_space: "パスワードに空白は使えません",
         sy_pw_match: "パスワードが一致しません",
         sy_pw_q: "管理者パスワードを変更しますか?",
@@ -1032,7 +1032,7 @@ var LANG = {
         sy_ntpint_err: "轮询间隔必须为 1-1440",
         sy_time_note: "交换机没有电池供电的时钟：每次重启都会丢失时间，网络连通后会从 NTP 服务器重新获取时间。保存到 Flash 以保留这些设置。",
         sy_sysport_err: "syslog 端口范围为 1-65535",
-        sy_pw_len: "密码: 1-20 个字符",
+        sy_pw_len: "密码: 1-20 字节",
         sy_pw_space: "密码不能包含空格",
         sy_pw_match: "两次输入的密码不一致",
         sy_pw_q: "修改管理员密码?",
@@ -1340,7 +1340,7 @@ var LANG = {
         sy_dhcp_d: "El switch solicita una dirección mediante DHCP. Deberás encontrar su nueva IP para reconectar.",
         sy_sysip_err: "IP del servidor syslog no válida",
         sy_sysport_err: "El puerto de syslog debe estar entre 1 y 65535",
-        sy_pw_len: "Contraseña: 1-20 caracteres",
+        sy_pw_len: "Contraseña: 1-20 bytes",
         sy_pw_space: "La contraseña no puede contener espacios",
         sy_pw_match: "Las contraseñas no coinciden",
         sy_pw_q: "¿Cambiar la contraseña de administrador?",
@@ -1770,7 +1770,7 @@ var LANG = {
         sy_ntpint_err: "L'intervalle de scrutation doit être compris entre 1 et 1440",
         sy_time_note: "Le commutateur n'a pas d'horloge sauvegardée par batterie: L'heure est donc perdue à chaque redémarrage et doit être récupérée grâce au serveur NTP une fois le réseau fonctionnel. Sauvegardez en mémoire flash pour enregistrer les paramètres.",
         sy_sysport_err: "Le port Syslog doit être compris entre 1 et 65535",
-        sy_pw_len: "Mot de passe : 1 à 20 caractères",
+        sy_pw_len: "Mot de passe : 1 à 20 octets",
         sy_pw_space: "Le mot de passe ne doit pas contenir d'espaces",
         sy_pw_match: "Les mots de passe ne correspondent pas",
         sy_pw_q: "Changer le mot de passe d'administration?",
@@ -2158,7 +2158,7 @@ var LANG = {
         sy_ntp_err: "Hostname oder IPv4-Adresse des NTP-Servers eingeben",
         sy_ntpint_err: "Abfrageintervall muss zwischen 1 und 1440 liegen",
         sy_time_note: "Der Switch hat keine batteriegepufferte Uhr: Die Zeit geht bei jedem Neustart verloren und wird neu vom NTP-Server bezogen, sobald das Netzwerk bereit ist. Im Flash speichern, damit die Einstellungen erhalten bleiben.",
-        sy_pw_len: "Passwort: 1-20 Zeichen",
+        sy_pw_len: "Passwort: 1-20 Bytes",
         sy_pw_space: "Das Passwort darf keine Leerzeichen enthalten",
         sy_pw_match: "Die Passwörter stimmen nicht überein",
         sy_pw_q: "Admin-Passwort ändern?",
@@ -2496,6 +2496,7 @@ function modal(title, bodyEl, buttons) {
 
 function closeModal() {
     S.detail = null;
+    if (ctrPoll) ctrPoll.stop();
     $("mback").classList.remove("show")
 }
 $("mx").addEventListener("click", closeModal);
@@ -2643,20 +2644,21 @@ function Poller(fn, ms) {
 Poller.prototype.start = function() {
     if (this.on) return;
     this.on = true;
-    this.tick()
+    this.gen = (this.gen || 0) + 1;
+    this.tick(this.gen)
 };
 Poller.prototype.stop = function() {
     this.on = false;
     clearTimeout(this.t)
 };
-Poller.prototype.tick = function() {
+Poller.prototype.tick = function(gen) {
     var self = this;
-    if (!self.on) return;
+    if (!self.on || gen !== self.gen) return;
     var quiet = document.hidden || Date.now() - lastInput > IDLE_STOP_MS;
     var run = quiet ? Promise.resolve() : Promise.resolve().then(self.fn).catch(function() {});
     run.then(function() {
-        if (self.on) self.t = setTimeout(function() {
-            self.tick()
+        if (self.on && gen === self.gen) self.t = setTimeout(function() {
+            self.tick(gen)
         }, self.ms);
     });
 };
@@ -4698,6 +4700,10 @@ function scApply(n) {
             u = $("scu" + ty + n).value,
             v = inp.value.trim(),
             want = "off";
+        if (inp.validity.badInput) {
+            toast(t("sc_err"), "err");
+            return;
+        }
         if (v !== "" && v !== "0") {
             var x = Number(v);
             if (!Number.isInteger(x) || x < 1 || (u === "pps" && x > 1048575) || (u === "kbps" && x > 10000000)) {
@@ -4866,8 +4872,9 @@ $("sy-sesstmo").addEventListener("change", function() {
 });
 $("sy-pwapply").addEventListener("click", function() {
     var a = $("sy-pw1").value,
-        b = $("sy-pw2").value;
-    if (a.length < 1 || a.length > 20) {
+        b = $("sy-pw2").value,
+        n = new Blob([a]).size;
+    if (n < 1 || n > 20) {
         toast(t("sy_pw_len"), "err");
         return;
     }
@@ -5054,7 +5061,7 @@ var CONF_OVERWRITE = [
     /^port\s+\d{1,2}(?!\s+(name|lldp)\b)/, /^port\s+\d{1,2}\s+name\b/,
     /^mirror\b/,
     /^lag\s+\d\b/, /^laghash\s+\d\b/, /^isolate\s+\d{1,2}\b/,
-    /^stp\s+(prio|hello|maxage|fwd|txhold|version)\b/,
+    /^stp\s+(prio|hello|maxage|fwd|txhold|version|pathcost|bpdu)\b/,
     /^stp\s+(port\s+\d{1,2}|lag\s+[1-4])\s+(edge|cost|prio|guard|filter|p2p)\b/,
     /^igmp\b/, /^mtu\s+\d{1,2}\b/, /^storm\s+\d{1,2}\s+(bcast|mcast|ucast|umcast)\b/,
 ];
