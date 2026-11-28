@@ -106,7 +106,7 @@
   },
   {
     "machine": "HORACO_HC_SWTGW218AS_V2_0_1_19649",
-    "friendly_name": "Horaco HC-SWTG218AS",
+    "friendly_name": "Horaco HC-SWTGW218AS",
     "pcb": "PCB_SWTG018AS_A_V2_0_1_19649"
   },
   {
@@ -335,6 +335,11 @@
     "pcb": "SR_S25G2206F_N_V1_2"
   },
   {
+    "machine": "XIAOMI_SW_106T_A",
+    "friendly_name": "Xiaomi SW-106T-A",
+    "pcb": "MD09HT_V30"
+  },
+  {
     "machine": "XIKESTOR_SKS3200M_8GPY1XF",
     "friendly_name": "XikeStor SKS3200M-8GPY1XF",
     "pcb": "PCB_SWTG118AS_V2_1_17462"
@@ -363,5 +368,10 @@
     "machine": "SODOLA_SL_SWTGW0108P",
     "friendly_name": "Sodola SL-SWTGW0108P",
     "pcb": "S1100W_8GT_1SX_73N_V1_04"
+  },
+  {
+    "machine": "ZX-SWTG024AS",
+    "friendly_name": "ZX-SWTG024AS",
+    "pcb": "PCB_SWTG024AS_V1_0_16584"
   }
 ]

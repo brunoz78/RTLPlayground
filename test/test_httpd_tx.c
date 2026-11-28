@@ -143,7 +143,9 @@ void execute_config(void) { }
 static unsigned exec_calls;
 void execute_commands(uint8_t *p) { (void)p; exec_calls++; }
 void clear_command_history(void) { }
-void udp_callbacks(void) { }
+static unsigned udp_calls;
+static uint16_t udp_datalen;
+void udp_callbacks(void) { udp_calls++; udp_datalen = uip_datalen(); }
 void tcpip_output(void) { }
 void get_random_32(void) { }
 static uint32_t fake_now;
@@ -208,6 +210,7 @@ extern u16_t uip_listenports[UIP_LISTENPORTS];
 static uint32_t cli_seq;	/* next sequence number we send */
 static uint32_t cli_rcv_nxt;	/* next sequence number we expect */
 static uint16_t cli_window;	/* what we advertise */
+static uint16_t cli_urgp;	/* urgent pointer, sent when TCP_URG is set */
 
 static uint8_t stream[STREAM_MAX];	/* bytes accepted from the server */
 static int stream_len;
@@ -315,6 +318,8 @@ static void client_send(uint8_t flags, const char *payload, int plen)
 	TCPH->wnd[0] = (uint8_t)(cli_window >> 8);
 	TCPH->wnd[1] = (uint8_t)(cli_window & 0xff);
 	TCPH->tcpchksum = 0;
+	TCPH->urgp[0] = (uint8_t)(cli_urgp >> 8);
+	TCPH->urgp[1] = (uint8_t)(cli_urgp & 0xff);
 
 	if (hlen == 24) {
 		uint8_t *opt = &uip_buf[UIP_LLH_LEN + 40];
@@ -639,6 +644,56 @@ static void scenario_mss_zero(void)
 	      "an advertised MSS of 0 is ignored, the connection keeps the default");
 }
 
+#define TCP_URG 0x20
+
+/* A segment with URG set and an urgent pointer past the payload. Advancing
+ * uip_appdata by the urgent pointer ran httpd off the end of uip_buf
+ * (CVE-2020-17437, ASan SEGVs without the fix); delivered inline, the byte is
+ * just data and the connection carries on. */
+static void scenario_urg_inline(void)
+{
+	session_start(MSS_FULL);
+
+	memset(uip_buf, 0, UIP_LLH_LEN + 41);
+	TCPH->vhl = 0x45;
+	TCPH->len[0] = 0; TCPH->len[1] = 41;	/* 20 IP + 20 TCP + 1 data */
+	TCPH->ttl = 64;
+	TCPH->proto = UIP_PROTO_TCP;
+	TCPH->srcipaddr[0] = hton16(0x0a00); TCPH->srcipaddr[1] = hton16(0x0002);
+	TCPH->destipaddr[0] = hton16(0x0a00); TCPH->destipaddr[1] = hton16(0x0001);
+	TCPH->srcport = hton16(40000);
+	TCPH->destport = hton16(80);
+	wr32(TCPH->seqno, cli_seq);
+	wr32(TCPH->ackno, cli_rcv_nxt);
+	TCPH->tcpoffset = 5 << 4;
+	TCPH->flags = TCP_ACK | TCP_URG;
+	TCPH->wnd[0] = MSS_FULL >> 8; TCPH->wnd[1] = MSS_FULL & 0xff;
+	TCPH->urgp[0] = 0; TCPH->urgp[1] = 2;	/* urgent pointer one past the byte */
+	uip_buf[UIP_LLH_LEN + 40] = 'x';
+	uip_len = 41;
+	uip_input();
+	CHECK(uip_conn_active(0),
+	      "URG segment: delivered inline, no out-of-bounds, connection survives");
+	CHECK(uip_len == 40 && rd32(TCPH->ackno) == cli_seq + 1,
+	      "URG segment: the byte is acknowledged, rcv_nxt moves by exactly one");
+}
+
+/* A GET with URG set and the urgent pointer inside the request. Delivered
+ * inline, httpd sees the whole request and serves the file; skipping the
+ * urgent bytes instead would leave it a request with its start missing. */
+static void scenario_urg_get(void)
+{
+	static const char get[] = "GET " FILE_NAME " HTTP/1.1\r\nHost: sw\r\n\r\n";
+
+	session_start(MSS_FULL);
+	cli_urgp = 4;
+	client_send(TCP_ACK | TCP_PSH | TCP_URG, get, (int)strlen(get));
+	cli_urgp = 0;
+	drain(MSS_FULL);
+	CHECK(first_body_mismatch() == -1,
+	      "URG GET: the request is read inline and the file is served");
+}
+
 
 /* Private HTTP lifecycle values; drive the real callback, not a model. */
 enum { TSTATE_NONE = 0, TSTATE_TX = 1, TSTATE_POST = 4 };
@@ -752,6 +807,49 @@ static void scenario_upload_reset_owner(void)
 	httpd_appcall();
 	CHECK(reset_calls == 0, "failed CRC verdict ACK does not reset");
 
+}
+
+#define UDPH		((struct uip_udpip_hdr *)&uip_buf[UIP_LLH_LEN])
+
+static void put_udp(uint16_t total_len)
+{
+	memset(uip_buf, 0, UIP_LLH_LEN + 20 + 8 + 4);
+	UDPH->vhl = 0x45;
+	UDPH->len[0] = (uint8_t)(total_len >> 8);
+	UDPH->len[1] = (uint8_t)(total_len & 0xff);
+	UDPH->ttl = 64;
+	UDPH->proto = UIP_PROTO_UDP;
+	UDPH->srcipaddr[0] = hton16(0x0a00); UDPH->srcipaddr[1] = hton16(0x0002);
+	UDPH->destipaddr[0] = hton16(0x0a00); UDPH->destipaddr[1] = hton16(0x0001);
+	UDPH->srcport = hton16(40000);
+	UDPH->destport = hton16(5353);
+	uip_len = UIP_LLH_LEN + 20 + 8 + 4;
+}
+
+/* An IP length that ends inside the UDP header must not reach the application:
+ * the data length is that length minus both headers. */
+static void scenario_udp_shorter_than_its_header(void)
+{
+	uip_ipaddr_t any = { 0, 0 };
+	struct uip_udp_conn *c;
+
+	uip_init();
+	c = uip_udp_new(&any, 0);
+	uip_udp_bind(c, hton16(5353));
+
+	udp_calls = 0;
+	put_udp(20 + 8 + 4);
+	uip_input();
+	CHECK(udp_calls == 1 && udp_datalen == 4,
+	      "short UDP control: a whole datagram reaches the application with its length");
+
+	udp_calls = 0;
+	put_udp(20 + 4);
+	uip_input();
+	CHECK(udp_calls == 0,
+	      "short UDP: a datagram that ends inside its header is dropped");
+	uip_udp_remove(c);
+	uip_len = 0;
 }
 
 static void scenario_fragmented_post_header(void)
@@ -1425,9 +1523,12 @@ int main(int argc, char **argv)
 	scenario_malformed_tcp_options();
 	scenario_oversized_data_offset();
 	scenario_mss_zero();
+	scenario_urg_inline();
+	scenario_urg_get();
 	scenario_upload_reset_owner();
 	scenario_fragmented_post_header();
 	scenario_split_content_type();
+	scenario_udp_shorter_than_its_header();
 	scenario_split_header_terminator();
 	scenario_header_then_body();
 	scenario_header_with_partial_body();

@@ -20,6 +20,8 @@
 extern __xdata uint8_t cmd_line_len;
 extern uint8_t cmd_buffer[];
 extern uint8_t cmd_available;
+extern uint8_t cmd_history[];
+extern uint16_t cmd_history_ptr;
 
 static void test_basic_line(void) {
     printf("[test] basic line entry + Enter\n");
@@ -36,6 +38,19 @@ static void test_backspace(void) {
     feed("\b");            /* delete the 'o' -> wait, cursor at end: removes last char */
     feed("lo\n");
     CHECK(t_strcmp((char *)cmd_buffer, "hello") == 0, "backspace then retype yields 'hello'");
+}
+
+static void test_backspace_full_line(void) {
+    char full[CMD_BUF_SIZE - 1];
+    printf("[test] backspace on a full line stays inside cmd_buffer\n");
+    env_reset();
+    t_memset(full, 'c', sizeof(full));
+    feed_n(full, sizeof(full));
+    feed("\b");
+    CHECK(cmd_line_len == CMD_BUF_SIZE - 2, "the full line is one character shorter");
+    feed("d\n");
+    CHECK(cmd_buffer[CMD_BUF_SIZE - 3] == 'c' && cmd_buffer[CMD_BUF_SIZE - 2] == 'd'
+          && cmd_buffer[CMD_BUF_SIZE - 1] == 0, "the line ends with the character typed after it");
 }
 
 static void test_second_line_waits(void) {
@@ -112,10 +127,27 @@ static void test_escape_then_enter(void) {
     CHECK(t_strcmp((char *)cmd_buffer, "ab") == 0, "the unfinished sequence adds nothing to the line");
 }
 
+static void test_history_keeps_typed_line(void) {
+    static const char hist[] = "one\ntwo\n";
+    printf("[test] the typed line comes back after a walk through the history\n");
+    env_reset();
+    for (uint8_t i = 0; i < sizeof(hist) - 1; i++)
+        cmd_history[i] = hist[i];
+    cmd_history_ptr = sizeof(hist) - 1;
+    feed("abc");
+    feed("\033[A");
+    feed("\033[A");
+    feed("\033[B");
+    feed("\033[B");
+    feed("\n");
+    CHECK(t_strcmp((char *)cmd_buffer, "abc") == 0, "two up and two down give the typed line back");
+}
+
 int main(void) {
     printf("== cmd_editor host tests ==\n");
     test_basic_line();
     test_backspace();
+    test_backspace_full_line();
     test_unknown_escape("Home (ESC [ H)", "\033[H");
     test_unknown_escape("Home (ESC [ 1 ~)", "\033[1~");
     test_unknown_escape("F1 (ESC O P)", "\033OP");
@@ -127,6 +159,7 @@ int main(void) {
     test_full_line_no_hang();
     test_full_line_no_overflow();
     test_second_line_waits();
+    test_history_keeps_typed_line();
     printf("\n%d checks, %d failed\n", tests_run, tests_failed);
     return tests_failed ? 1 : 0;
 }

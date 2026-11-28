@@ -68,6 +68,7 @@ The following devices have been tested and are fully working:
 | Steamemo | IG204-V1        | No      | [PB-2131](devices/PB-2131.md)                                               |       | 4 + 2 |
 | TRENDnet | TEG-S562        | No      | [270-NB1-MS206B004A1_REV.A1](devices/270-NB1-MS206B004A1_REV.A1.md)                   | 2M    | 4 + 2 |
 | Vimin    | S250402-N       | No      | [SR-S25G2206F-N-V1.2](devices/SR-S25G2206F-N-V1.2.md)                                 | 2M    | 4 + 2 |
+| Xiaomi   | SW-106T-A       | No      | [MD09HT V30](devices/MD09HT_V30.md)                                                  | 1M    | 4 + 2 |
 | XikeStor | SKS3200-4E2X    | Yes     | [PCB-SWTG024AS-V2.1.0_19023](devices/PCB-SWTG024AS-V2.1.0_19023.md)                   | 2M    | 4 + 2 |
 | XikeStor | SKS3200-8E1X    | Yes     | [PCB-SWTG018AS-V2.1.0_19030](devices/PCB-SWTG018AS-V2.1.0_19030.md)                   | 2M    | 8 + 1 |
 | XikeStor | SKS3200M-4GPY2XF| Yes     | [PCB-SWTG024AS-V2.0-17452](devices/PCB-SWTG024AS-V2.0-17452.md)                       |       | 4 + 2 |
@@ -77,6 +78,7 @@ The following devices have been tested and are fully working:
 | YuanLey  | YS25-0402M      | Yes     | [SIRIVISION_S25G2206FP_V1_1](devices/S25G2206FP_V1.1.md)                              | 2M    | 4 + 2 |
 | ZoeRax   | HG0402XG        | No      | [HG0402XG_V1.1](devices/HG0402XG_V1.1.md)                                             | 1M    | 4 + 2 |
 | Ztyuav   | Z-QWYT0402      | No      | [PCB-K0402W-V3.0](devices/PCB-K0402W-V3.0.md)                                         |       | 4 + 2 |
+| ZX       | SWTG024AS       | No      | [PCB-SWTG024AS-V1.0-16584](devices/PCB-SWTG024AS-V1.0-16584.md)                                               | 0.5M  | 4 + 2 |
 
 For KP-9000-6XH-X2 / KP-9000-6XHML-X2 / KP-9000-9XHPML-X / Mokerlink 2G040210GSM devices, select
 the machine target by PCB revision. The ML/non-ML or managed/unmanaged label
